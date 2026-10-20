@@ -1,0 +1,626 @@
+{
+  "info": {
+    "_postman_id": "books-api-jwt-collection",
+    "name": "Books API - JWT Authentication",
+    "description": "Complete collection for Keycloak JWT login and Books API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. LOGIN - Get JWT Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('jwt_token', jsonData.access_token);",
+              "    pm.environment.set('refresh_token', jsonData.refresh_token);",
+              "    pm.environment.set('token_expires_in', jsonData.expires_in);",
+              "    pm.environment.set('token_obtained_at', new Date().getTime());",
+              "    ",
+              "    console.log('✅ JWT Token obtained successfully');",
+              "    console.log('Token expires in: ' + jsonData.expires_in + ' seconds');",
+              "    console.log('Token: ' + jsonData.access_token.substring(0, 50) + '...');",
+              "}",
+              "",
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response contains access_token', function() {",
+              "    pm.expect(pm.response.json()).to.have.property('access_token');",
+              "});",
+              "",
+              "pm.test('Response contains token_type Bearer', function() {",
+              "    pm.expect(pm.response.json().token_type).to.equal('Bearer');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "password",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{client_secret}}",
+              "type": "text"
+            },
+            {
+              "key": "username",
+              "value": "{{username}}",
+              "type": "text"
+            },
+            {
+              "key": "password",
+              "value": "{{password}}",
+              "type": "text"
+            },
+            {
+              "key": "scope",
+              "value": "openid profile email",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{keycloak_url}}/realms/books-realm/protocol/openid-connect/token",
+          "host": [
+            "{{keycloak_url}}"
+          ],
+          "path": [
+            "realms",
+            "books-realm",
+            "protocol",
+            "openid-connect",
+            "token"
+          ]
+        },
+        "description": "Login to Keycloak and get JWT token\n\nUse these credentials:\n- User: user / user123\n- Admin: admin / admin123"
+      }
+    },
+    {
+      "name": "2. GET BOOKS - Get all books",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response is an array', function() {",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});",
+              "",
+              "if (pm.response.json().length > 0) {",
+              "    pm.test('First book has required fields', function() {",
+              "        var book = pm.response.json()[0];",
+              "        pm.expect(book).to.have.property('id');",
+              "        pm.expect(book).to.have.property('title');",
+              "        pm.expect(book).to.have.property('author');",
+              "        pm.expect(book).to.have.property('price');",
+              "    });",
+              "}",
+              "",
+              "console.log('✅ Retrieved ' + pm.response.json().length + ' books');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/books",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "books"
+          ]
+        },
+        "description": "Get all books from the database (requires authentication)"
+      }
+    },
+    {
+      "name": "3. GET BOOK BY ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 404', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('Book has required fields', function() {",
+              "        var book = pm.response.json();",
+              "        pm.expect(book).to.have.property('id');",
+              "        pm.expect(book).to.have.property('title');",
+              "        pm.expect(book).to.have.property('author');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/books/1",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "books",
+            "1"
+          ]
+        },
+        "description": "Get a specific book by ID"
+      }
+    },
+    {
+      "name": "4. CREATE BOOK",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function() {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response contains created book', function() {",
+              "    var book = pm.response.json();",
+              "    pm.expect(book).to.have.property('id');",
+              "    pm.expect(book).to.have.property('title');",
+              "});",
+              "",
+              "console.log('✅ Book created with ID: ' + pm.response.json().id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"New Book Title\",\n  \"author\": \"Author Name\",\n  \"price\": 29.99\n}"
+        },
+        "url": {
+          "raw": "{{api_url}}/api/books",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "books"
+          ]
+        },
+        "description": "Create a new book"
+      }
+    },
+    {
+      "name": "5. DELETE BOOK",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 204 or 404', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([204, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 204) {",
+              "    console.log('✅ Book deleted successfully');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/books/999",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "books",
+            "999"
+          ]
+        },
+        "description": "Delete a book by ID"
+      }
+    },
+    {
+      "name": "6. USER PROFILE",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Profile contains user info', function() {",
+              "    var profile = pm.response.json();",
+              "    pm.expect(profile).to.have.property('username');",
+              "    pm.expect(profile).to.have.property('email');",
+              "});",
+              "",
+              "console.log('✅ User: ' + pm.response.json().username);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/user/profile",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "user",
+            "profile"
+          ]
+        },
+        "description": "Get current user profile"
+      }
+    },
+    {
+      "name": "7. JWT CLAIMS",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "console.log('JWT Claims:', JSON.stringify(pm.response.json(), null, 2));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/user/claims",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "user",
+            "claims"
+          ]
+        },
+        "description": "View all JWT claims from the token"
+      }
+    },
+    {
+      "name": "8. ADMIN DASHBOARD (Admin only)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200 (admin) or 403 (forbidden)', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 403]);",
+              "});",
+              "",
+              "if (pm.response.code === 403) {",
+              "    console.log('⚠️  Access denied - use admin account');",
+              "} else {",
+              "    console.log('✅ Admin access granted');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/admin/dashboard",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "dashboard"
+          ]
+        },
+        "description": "Admin endpoint - requires ADMIN role\n\nLogin with admin / admin123"
+      }
+    },
+    {
+      "name": "9. ADMIN USERS (Admin only)",
+      "event": [
+        {
+          "listen": "test",
+          "script": [
+            "pm.test('Status is 200 (admin) or 403 (forbidden)', function() {",
+            "    pm.expect(pm.response.code).to.be.oneOf([200, 403]);",
+            "});"
+          ]
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{api_url}}/api/admin/users",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "users"
+          ]
+        },
+        "description": "Get list of users - Admin endpoint"
+      }
+    },
+    {
+      "name": "10. PUBLIC INFO (No auth)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "console.log('✅ Public endpoint accessible without authentication');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{api_url}}/api/public/info",
+          "host": [
+            "{{api_url}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "info"
+          ]
+        },
+        "description": "Public endpoint - no authentication required"
+      }
+    },
+    {
+      "name": "11. REFRESH TOKEN",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('jwt_token', jsonData.access_token);",
+              "    pm.environment.set('refresh_token', jsonData.refresh_token);",
+              "    console.log('✅ Token refreshed successfully');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "refresh_token",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{client_secret}}",
+              "type": "text"
+            },
+            {
+              "key": "refresh_token",
+              "value": "{{refresh_token}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{keycloak_url}}/realms/books-realm/protocol/openid-connect/token",
+          "host": [
+            "{{keycloak_url}}"
+          ],
+          "path": [
+            "realms",
+            "books-realm",
+            "protocol",
+            "openid-connect",
+            "token"
+          ]
+        },
+        "description": "Refresh the JWT token using refresh_token"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "keycloak_url",
+      "value": "http://localhost:8180",
+      "type": "string"
+    },
+    {
+      "key": "api_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "books-service",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "books-secret-2024",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "user",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "user123",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_expires_in",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_obtained_at",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+

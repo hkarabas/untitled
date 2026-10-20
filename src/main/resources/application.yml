@@ -1,0 +1,74 @@
+spring:
+  main:
+    keep-alive: true
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:mysql://mysql:3306/books_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&rewriteBatchedStatements=true
+    username: books_user
+    password: books_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 15
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50000
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+
+  # Keycloak OAuth2 Configuration (resource server only: the API validates bearer JWTs,
+  # it never logs users in itself, so it needs no client secret)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/books-realm
+          jwk-set-uri: http://localhost:8180/realms/books-realm/protocol/openid-connect/certs
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    oauth:
+      clientId: books-service
+      usePkceWithAuthorizationCodeGrant: true
+    operations-sorter: method
+    tags-sorter: alpha
+    syntaxHighlight:
+      activated: true
+      theme: monokai
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+
+server:
+  port: 8080
+  # Connection timeout for large uploads
+  tomcat:
+    connection-timeout: 600000
+    max-connections: 200
+    threads:
+      max: 200
+      min-spare: 10
+    # Tomcat POST size limit (must match multipart limits)
+    max-http-form-post-size: 209715200  # 200MB in bytes

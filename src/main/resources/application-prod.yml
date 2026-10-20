@@ -1,0 +1,77 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:prod-db-server}:3306/books_db?useSSL=true&allowPublicKeyRetrieval=false&serverTimezone=UTC&rewriteBatchedStatements=true
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      leak-detection-threshold: 60000
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50000
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: false
+  api-docs:
+    path: /v3/api-docs
+    enabled: false
+
+server:
+  port: 8080
+  tomcat:
+    connection-timeout: 600000
+    max-connections: 300
+    threads:
+      max: 300
+      min-spare: 20
+    # Tomcat POST size limit (must match multipart limits)
+    max-http-form-post-size: 209715200  # 200MB in bytes
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+
+logging:
+  level:
+    root: ERROR
+    com.example.untitled: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/books-api/application.log
+    max-size: 10MB
+    max-history: 30
+
+app:
+  name: Books API
+  version: 1.0.0
+  environment: production
+  description: Production environment - high availability
