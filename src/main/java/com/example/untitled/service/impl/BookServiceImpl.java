@@ -9,7 +9,6 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -17,8 +16,11 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -67,9 +70,18 @@ public class BookServiceImpl implements BookService {
     /** Only one bulk operation runs at a time, so they cannot exhaust the connection pool or heap together. */
     private final Semaphore bulkPermit = new Semaphore(1);
 
-    public BookServiceImpl(BookRepository bookRepository, BookBatchWriter batchWriter) {
+    /** Threads used by {@code parallelStream()} in the parallel-stream import. */
+    private final int parseParallelism;
+
+    /**
+     * @param parseParallelism threads for the parallel-stream import's parsing; 0 or less means one per CPU core
+     */
+    public BookServiceImpl(BookRepository bookRepository, BookBatchWriter batchWriter,
+                           @Value("${app.import.parallel-stream.parallelism:0}") int parseParallelism) {
         this.bookRepository = bookRepository;
         this.batchWriter = batchWriter;
+        this.parseParallelism = parseParallelism > 0 ? parseParallelism : Runtime.getRuntime().availableProcessors();
+        log.info("Parallel-stream import parsing threads: {}", this.parseParallelism);
     }
 
     @Override
@@ -192,76 +204,116 @@ public class BookServiceImpl implements BookService {
             long startTime = System.currentTimeMillis();
             log.info("Starting CSV import: strategy=virtual-threads, filename={}, sizeBytes={}", filename, file.getSize());
             try (BufferedReader reader = reader(file.getInputStream())) {
-                return logResult("virtual-threads", filename, streamBatchesConcurrently(reader, startTime));
+                return logResult("virtual-threads", filename, streamBatchesConcurrently(reader, startTime, "[vt]"));
             }
         } finally {
             bulkPermit.release();
         }
     }
 
-    private ImportResult streamBatchesConcurrently(BufferedReader reader, long startTime) throws IOException {
+    /**
+     * @param tag log prefix identifying the calling strategy, e.g. {@code [vt]} or {@code [ff]}
+     */
+    private ImportResult streamBatchesConcurrently(BufferedReader reader, long startTime, String tag) throws IOException {
         AtomicLong imported = new AtomicLong();
         AtomicLong skipped = new AtomicLong();
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Semaphore writers = new Semaphore(DB_WRITERS);
         int batches = 0;
+        long lineNo = 0;
+        long chunkFirstLine = 1;
 
-        // Virtual threads are cheap and not pooled; the semaphore is what limits concurrency
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        log.info(tag + " Pipeline started: batchSize={}, maxConcurrentWriters={}", BATCH_SIZE, DB_WRITERS);
+
+        // Virtual threads are cheap and not pooled; the semaphore is what limits concurrency.
+        // Named csv-batch-1, csv-batch-2, ... (one thread per batch, so the number matches the batch number)
+        ThreadFactory batchThreads = Thread.ofVirtual().name("csv-batch-", 1).factory();
+        try (ExecutorService executor = Executors.newThreadPerTaskExecutor(batchThreads)) {
             List<String> chunk = new ArrayList<>(BATCH_SIZE);
             String line;
             while (failure.get() == null && (line = reader.readLine()) != null) {
+                lineNo++;
                 if (CsvBookParser.isBlank(line)) {
                     continue;
                 }
                 chunk.add(line);
                 if (chunk.size() == BATCH_SIZE) {
-                    submitBatch(executor, writers, chunk, imported, skipped, failure);
-                    chunk = new ArrayList<>(BATCH_SIZE);
                     batches++;
+                    log.debug(tag + " Batch {} read: {} lines (file lines {}-{})", batches, chunk.size(), chunkFirstLine, lineNo);
+                    submitBatch(tag, executor, writers, chunk, batches, imported, skipped, failure);
+                    chunk = new ArrayList<>(BATCH_SIZE);
+                    chunkFirstLine = lineNo + 1;
                 }
             }
-            if (!chunk.isEmpty() && failure.get() == null) {
-                submitBatch(executor, writers, chunk, imported, skipped, failure);
+            if (failure.get() != null) {
+                log.warn(tag + " Reading stopped early at file line {} because a batch failed", lineNo);
+            } else if (!chunk.isEmpty()) {
                 batches++;
+                log.debug(tag + " Batch {} read (last, partial): {} lines (file lines {}-{})", batches, chunk.size(), chunkFirstLine, lineNo);
+                submitBatch(tag, executor, writers, chunk, batches, imported, skipped, failure);
             }
+
+            int inFlight = DB_WRITERS - writers.availablePermits();
+            log.info(tag + " Finished reading: {} file lines, {} batches submitted in {} ms; waiting for {} in-flight batches",
+                    lineNo, batches, System.currentTimeMillis() - startTime, inFlight);
             // Wait for all in-flight batches by draining every permit
             writers.acquire(DB_WRITERS);
+            log.info(tag + " All batches finished");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            log.error(tag + " Import interrupted after {} batches", batches);
             throw new IllegalStateException("Bulk operation interrupted", e);
         }
 
         if (failure.get() != null) {
+            log.error(tag + " Import failed: imported={}, skipped={} before failure", imported.get(), skipped.get());
             throw new IllegalStateException("CSV import failed after " + imported.get() + " books were imported",
                     failure.get());
         }
-        log.debug("Imported {} batches", batches);
         return new ImportResult(imported.get(), skipped.get(), System.currentTimeMillis() - startTime);
     }
 
-    private void submitBatch(ExecutorService executor, Semaphore writers, List<String> chunk,
+    private void submitBatch(String tag, ExecutorService executor, Semaphore writers, List<String> chunk, int batchNo,
                              AtomicLong imported, AtomicLong skipped, AtomicReference<Throwable> failure)
             throws InterruptedException {
-        writers.acquire(); // blocks the reader while DB_WRITERS batches are in flight
+        // Blocks the reader while DB_WRITERS batches are in flight (backpressure)
+        if (!writers.tryAcquire()) {
+            long waitStart = System.currentTimeMillis();
+            log.debug(tag + " Batch {} waiting: all {} writers busy", batchNo, DB_WRITERS);
+            writers.acquire();
+            log.debug(tag + " Batch {} got a writer after waiting {} ms", batchNo, System.currentTimeMillis() - waitStart);
+        }
         try {
             executor.execute(() -> {
                 try {
                     if (failure.get() != null) {
-                        return; // another batch already failed; don't write more
+                        log.warn(tag + " Batch {} skipped: an earlier batch already failed", batchNo);
+                        return;
                     }
+                    log.debug(tag + " Batch {} started on {}", batchNo, Thread.currentThread());
+
+                    long parseStart = System.currentTimeMillis();
                     List<Book> batch = new ArrayList<>(chunk.size());
+                    int invalid = 0;
                     for (String csvLine : chunk) {
                         Book book = CsvBookParser.parse(csvLine);
                         if (book == null) {
-                            skipped.incrementAndGet();
+                            invalid++;
                         } else {
                             batch.add(book);
                         }
                     }
+                    skipped.addAndGet(invalid);
+                    log.debug(tag + " Batch {} parsed: {} valid, {} invalid in {} ms",
+                            batchNo, batch.size(), invalid, System.currentTimeMillis() - parseStart);
+
+                    long insertStart = System.currentTimeMillis();
                     batchWriter.insert(batch);
-                    imported.addAndGet(batch.size());
+                    long total = imported.addAndGet(batch.size());
+                    log.info(tag + " Batch {} inserted: {} books in {} ms (total imported so far: {})",
+                            batchNo, batch.size(), System.currentTimeMillis() - insertStart, total);
                 } catch (Throwable t) {
+                    log.error(tag + " Batch {} failed: {}", batchNo, t.toString());
                     failure.compareAndSet(null, t);
                 } finally {
                     writers.release();
@@ -269,6 +321,7 @@ public class BookServiceImpl implements BookService {
             });
         } catch (RuntimeException e) {
             writers.release();
+            log.error(tag + " Batch {} could not be submitted", batchNo, e);
             throw e;
         }
     }
@@ -287,7 +340,9 @@ public class BookServiceImpl implements BookService {
             log.info("Starting CSV import: strategy=parallel-fire-and-forget, filename={}, sizeBytes={}",
                     filename, file.getSize());
             tempFile = Files.createTempFile("books_upload_parallel_", ".csv");
-            Files.copy(file.getInputStream(), tempFile, StandardCopyOption.REPLACE_EXISTING);
+            // transferTo(File) lets Tomcat move its already-on-disk upload instead of copying the bytes,
+            // so the request returns faster for large files
+            file.transferTo(tempFile.toFile());
 
             Path csv = tempFile;
             Thread.ofVirtual().name("csv-import-" + filename).start(() -> runBackgroundImport(csv, filename));
@@ -301,10 +356,10 @@ public class BookServiceImpl implements BookService {
 
     private void runBackgroundImport(Path csv, String filename) {
         long startTime = System.currentTimeMillis();
-        try {
-            List<String> lines = Files.readAllLines(csv);
-            ImportResult result = importLinesConcurrently(lines, calculateOptimalChunkSize(lines.size()), startTime);
-            logResult("parallel-fire-and-forget", filename, result);
+        // Streams the temp file through the same bounded pipeline as the virtual-threads import:
+        // DB writes start after the first 5000 lines instead of after the whole file is in memory
+        try (BufferedReader reader = Files.newBufferedReader(csv, StandardCharsets.UTF_8)) {
+            logResult("parallel-fire-and-forget", filename, streamBatchesConcurrently(reader, startTime, "[ff]"));
         } catch (Exception e) {
             log.error("Background CSV import failed: strategy=parallel-fire-and-forget, filename={}", filename, e);
         } finally {
@@ -327,14 +382,16 @@ public class BookServiceImpl implements BookService {
             List<String> lines = readLines(file.getInputStream()).stream()
                     .filter(line -> !CsvBookParser.isBlank(line))
                     .toList();
-            List<Book> books = lines.parallelStream()
-                    .map(CsvBookParser::parse)
-                    .filter(Objects::nonNull)
-                    .toList();
+            long parseStart = System.currentTimeMillis();
+            List<Book> books = parseInDedicatedPool(lines);
+            log.info("[ps] Parsed {} lines into {} books with {} threads in {} ms",
+                    lines.size(), books.size(), parseParallelism, System.currentTimeMillis() - parseStart);
 
+            long insertStart = System.currentTimeMillis();
             for (int from = 0; from < books.size(); from += BATCH_SIZE) {
                 batchWriter.insert(books.subList(from, Math.min(from + BATCH_SIZE, books.size())));
             }
+            log.info("[ps] Inserted {} books sequentially in {} ms", books.size(), System.currentTimeMillis() - insertStart);
 
             return logResult("parallel-stream", filename, new ImportResult(
                     books.size(), lines.size() - books.size(), System.currentTimeMillis() - startTime));
@@ -343,33 +400,29 @@ public class BookServiceImpl implements BookService {
         }
     }
 
-    private ImportResult importLinesConcurrently(List<String> lines, int chunkSize, long startTime) {
-        AtomicLong imported = new AtomicLong();
-        AtomicLong skipped = new AtomicLong();
-        List<Runnable> tasks = new ArrayList<>();
-
-        for (int startIdx = 0; startIdx < lines.size(); startIdx += chunkSize) {
-            List<String> chunk = lines.subList(startIdx, Math.min(startIdx + chunkSize, lines.size()));
-            tasks.add(() -> {
-                List<Book> batch = new ArrayList<>(chunk.size());
-                for (String line : chunk) {
-                    if (CsvBookParser.isBlank(line)) {
-                        continue;
-                    }
-                    Book book = CsvBookParser.parse(line);
-                    if (book == null) {
-                        skipped.incrementAndGet();
-                    } else {
-                        batch.add(book);
-                    }
-                }
-                batchWriter.insert(batch);
-                imported.addAndGet(batch.size());
-            });
+    /**
+     * Runs the parallel stream inside a dedicated ForkJoinPool so its thread count is configurable
+     * ({@code app.import.parallel-stream.parallelism}) without changing the JVM-wide common pool.
+     * A parallel stream started from inside a ForkJoinPool task executes in that pool.
+     */
+    private List<Book> parseInDedicatedPool(List<String> lines) {
+        ForkJoinPool.ForkJoinWorkerThreadFactory namedThreads = pool -> {
+            ForkJoinWorkerThread thread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+            thread.setName("csv-parse-" + thread.getPoolIndex());
+            return thread;
+        };
+        try (ForkJoinPool pool = new ForkJoinPool(parseParallelism, namedThreads, null, false)) {
+            return pool.submit(() -> lines.parallelStream()
+                            .map(CsvBookParser::parse)
+                            .filter(Objects::nonNull)
+                            .toList())
+                    .get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("CSV parsing interrupted", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("CSV parsing failed", e.getCause());
         }
-
-        runConcurrently(tasks);
-        return new ImportResult(imported.get(), skipped.get(), System.currentTimeMillis() - startTime);
     }
 
     /**
@@ -402,16 +455,6 @@ public class BookServiceImpl implements BookService {
                 }
             }
         }
-    }
-
-    /**
-     * Aim for ~30 chunks for good parallelism, but keep chunks between 1000 and 10000 lines.
-     */
-    private static int calculateOptimalChunkSize(int totalLines) {
-        int minChunkSize = 1000;
-        int maxChunkSize = 10000;
-        int targetChunks = 30;
-        return Math.min(Math.max(minChunkSize, totalLines / targetChunks), maxChunkSize);
     }
 
     private void acquireBulkPermit() {

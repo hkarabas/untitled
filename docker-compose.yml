@@ -82,6 +82,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: books_pass
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8180/realms/books-realm
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/books-realm/protocol/openid-connect/certs
+      # Show per-step import logs ([vt] Batch N read/waiting/started/parsed)
+      LOGGING_LEVEL_COM_EXAMPLE_UNTITLED: DEBUG
       # Remote debugging is a dev-only convenience; reachable from this machine only (see ports)
       JAVA_TOOL_OPTIONS: "-Xms2g -Xmx8g -XX:ActiveProcessorCount=4 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
     ports:

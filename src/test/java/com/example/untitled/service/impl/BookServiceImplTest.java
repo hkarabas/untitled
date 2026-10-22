@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 class BookServiceImplTest {
 
     private final BookBatchWriter writer = mock(BookBatchWriter.class);
-    private final BookServiceImpl service = new BookServiceImpl(mock(BookRepository.class), writer);
+    private final BookServiceImpl service = new BookServiceImpl(mock(BookRepository.class), writer, 4);
 
     private static MockMultipartFile csv(String content) {
         return new MockMultipartFile("file", "books.csv", "text/csv", content.getBytes(StandardCharsets.UTF_8));

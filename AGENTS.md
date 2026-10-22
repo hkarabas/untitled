@@ -39,7 +39,9 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 ### Tests
 ```bash
 mvn test   # unit tests + @WebMvcTest security tests + @DataJpaTest on H2; no MySQL/Keycloak needed
+mvn verify # also runs *IT integration tests (Failsafe) against MySQL 8.0 in Docker via Testcontainers
 ```
+`BookInsertIT` inserts 100,000 rows with each bulk method and checks the table contents (row count, no duplicates, price sum, spot rows).
 
 ### Swagger UI
 ```
@@ -59,8 +61,8 @@ All accept `multipart/form-data` with field name `file`. Max upload: **200MB**.
 |----------|--------|-----------|
 | `/api/books/import-csv-traditional` | Synchronous, single-threaded | Baseline |
 | `/api/books/import-csv-virtual-threads` | Synchronous, streaming: one virtual thread per 5000-line batch, max 20 in flight (semaphore backpressure) | Faster, bounded memory |
-| `/api/books/import-csv-parallel-fire-and-forget` | **Returns 202 immediately**, background virtual threads | Non-blocking |
-| `/api/books/import-csv-parallel-stream` | Synchronous, `parallelStream()` via ForkJoinPool | CPU-bound |
+| `/api/books/import-csv-parallel-fire-and-forget` | **Returns 202 immediately**; background thread streams the temp file through the same pipeline as virtual-threads (logs prefixed `[ff]`) | Non-blocking, bounded memory |
+| `/api/books/import-csv-parallel-stream` | Synchronous, `parallelStream()` parsing in a dedicated ForkJoinPool (`app.import.parallel-stream.parallelism`, 0 = CPU cores), then sequential inserts | Insert-bound (~95% of time) |
 
 CSV format: `title,author,price`. Quoted fields and escaped quotes (`""`) supported; a header row or any malformed line is skipped and counted in the response.
 
