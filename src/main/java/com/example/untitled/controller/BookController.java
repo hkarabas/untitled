@@ -2,7 +2,6 @@ package com.example.untitled.controller;
 
 import com.example.untitled.entity.Book;
 import com.example.untitled.service.BookService;
-import com.example.untitled.service.ImportResult;
 import com.example.untitled.service.impl.BookServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,9 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.net.URI;
 
 @RestController
@@ -92,59 +89,5 @@ public class BookController {
 
         return ResponseEntity.ok(String.format("Successfully generated %d random books in %d ms (%.2f seconds)",
                 count, duration, duration / 1000.0));
-    }
-
-    @PostMapping(value = "/import-csv-traditional", consumes = "multipart/form-data")
-    @Operation(summary = "Import books from CSV (Traditional)", description = "Upload and import books from a CSV file using a single thread")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "CSV imported successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file"),
-            @ApiResponse(responseCode = "429", description = "Another bulk operation is running")
-    })
-    public ResponseEntity<String> importCsvTraditional(
-            @RequestParam("file") @Parameter(description = "CSV file to upload", required = true) MultipartFile file) throws IOException {
-        return ResponseEntity.ok(describe("Traditional", bookService.importCsvTraditional(file)));
-    }
-
-    @PostMapping(value = "/import-csv-virtual-threads", consumes = "multipart/form-data")
-    @Operation(summary = "Import books from CSV (Virtual Threads)", description = "Upload and import books from a CSV file using virtual threads for better performance")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "CSV imported successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file"),
-            @ApiResponse(responseCode = "429", description = "Another bulk operation is running")
-    })
-    public ResponseEntity<String> importCsvVirtualThreads(
-            @RequestParam("file") @Parameter(description = "CSV file to upload", required = true) MultipartFile file) throws IOException {
-        return ResponseEntity.ok(describe("Virtual Threads", bookService.importCsvVirtualThreads(file)));
-    }
-
-    @PostMapping(value = "/import-csv-parallel-fire-and-forget", consumes = "multipart/form-data")
-    @Operation(summary = "Import books from CSV (Parallel Fire-and-Forget)", description = "Upload and import books from a CSV file using parallel divide-and-conquer strategy with fire-and-forget processing. Returns immediately without waiting for completion; the outcome is only logged.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "202", description = "CSV import accepted and processing in background"),
-            @ApiResponse(responseCode = "400", description = "Invalid file"),
-            @ApiResponse(responseCode = "429", description = "Another bulk operation is running")
-    })
-    public ResponseEntity<String> importCsvParallelFireAndForget(
-            @RequestParam("file") @Parameter(description = "CSV file to upload", required = true) MultipartFile file) throws IOException {
-        bookService.importCsvParallelFireAndForget(file);
-        return ResponseEntity.accepted().body("CSV import accepted. Processing started in background using parallel divide-and-conquer strategy with fire-and-forget execution.");
-    }
-
-    @PostMapping(value = "/import-csv-parallel-stream", consumes = "multipart/form-data")
-    @Operation(summary = "Import books from CSV (Parallel Streams)", description = "Upload and import books from a CSV file using Java Streams API with parallelStream() for concurrent parsing.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "CSV imported successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid file"),
-            @ApiResponse(responseCode = "429", description = "Another bulk operation is running")
-    })
-    public ResponseEntity<String> importCsvParallelStream(
-            @RequestParam("file") @Parameter(description = "CSV file to upload", required = true) MultipartFile file) throws IOException {
-        return ResponseEntity.ok(describe("Parallel Streams", bookService.importCsvParallelStream(file)));
-    }
-
-    private static String describe(String method, ImportResult result) {
-        return String.format("CSV import completed successfully (%s method): %d books imported, %d invalid lines skipped, in %d ms (%.2f seconds)",
-                method, result.imported(), result.skipped(), result.durationMs(), result.durationMs() / 1000.0);
     }
 }

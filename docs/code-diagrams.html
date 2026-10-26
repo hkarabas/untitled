@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Books API Diagrams</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: companion to the Books API Handbook (same tokens). One wide column so diagrams have room;
+   contents as a wrapping row at the top; each diagram scrolls sideways inside its own frame. */
+:root {
+  --paper: #f6f7f9;
+  --sheet: #ffffff;
+  --ink: #1d2330;
+  --ink-soft: #4f586a;
+  --rule: #dde1e8;
+  --binding: #8e2b3a;
+  --binding-soft: #f4e6e8;
+  --code-bg: #eef1f5;
+  --node: #f4f6f9;
+  --node-line: #8a94a6;
+  --warn: #9a6200;
+
+  --font-display: "Literata", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12151c;
+    --sheet: #191d26;
+    --ink: #e4e7ee;
+    --ink-soft: #a3abbb;
+    --rule: #2c3240;
+    --binding: #e2808f;
+    --binding-soft: #33202a;
+    --code-bg: #222835;
+    --node: #222835;
+    --node-line: #6b7488;
+    --warn: #e0b25a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12151c;
+  --sheet: #191d26;
+  --ink: #e4e7ee;
+  --ink-soft: #a3abbb;
+  --rule: #2c3240;
+  --binding: #e2808f;
+  --binding-soft: #33202a;
+  --code-bg: #222835;
+  --node: #222835;
+  --node-line: #6b7488;
+  --warn: #e0b25a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1rem/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.page {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding-block: 2.5rem 4rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header.cover { border-bottom: 1px solid var(--rule); padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+.eyebrow { font: 600 .8125rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .1em; color: var(--binding); margin: 0 0 .9rem; }
+.eyebrow a { color: inherit; }
+h1 { font: 650 2.125rem/1.15 var(--font-display); margin: 0 0 .8rem; text-wrap: balance; letter-spacing: -.01em; }
+.lede { font-size: 1.1rem; color: var(--ink-soft); margin: 0; max-width: 46rem; }
+
+nav.toc { margin: 0 0 2.5rem; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem .5rem; }
+nav.toc a {
+  display: block; padding: .3rem .7rem; border: 1px solid var(--rule); border-radius: 999px;
+  color: var(--ink-soft); text-decoration: none; font-size: .88rem; background: var(--sheet);
+}
+nav.toc a:hover { color: var(--binding); border-color: var(--binding); }
+nav.toc a:focus-visible { outline: 2px solid var(--binding); outline-offset: 2px; }
+
+section { margin-bottom: 3.5rem; scroll-margin-top: 1.5rem; }
+h2 { font: 650 1.5rem/1.25 var(--font-display); margin: 0 0 .6rem; text-wrap: balance; display: flex; align-items: baseline; gap: .6rem; }
+h2 .num { font: 500 .8125rem/1 var(--font-mono); color: var(--binding); }
+p { margin: 0 0 1rem; max-width: 70ch; }
+h3.sub { font: 600 1rem/1.3 var(--font-body); margin: 1.5rem 0 .6rem; color: var(--ink); }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: .08em .35em; border-radius: 3px; overflow-wrap: anywhere; }
+a { color: var(--binding); }
+
+.frame {
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1.25rem; overflow-x: auto; margin: 0 0 1rem;
+}
+pre.mermaid {
+  margin: 0; font: 400 .8rem/1.5 var(--font-mono); color: var(--ink-soft);
+  white-space: pre; background: none;
+}
+pre.mermaid svg { display: block; margin: 0 auto; height: auto; }
+.frame { position: relative; }
+.frame.wide::before {
+  content: "Wide diagram · scroll sideways ⇆";
+  position: sticky; left: 0; display: block; width: max-content; margin: -.5rem 0 .75rem;
+  font: 500 .75rem/1 var(--font-body); letter-spacing: .04em; color: var(--ink-soft);
+  background: var(--code-bg); padding: .35rem .55rem; border-radius: 3px;
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font-size: .85rem; color: var(--ink-soft); margin: 0 0 1rem; }
+.legend span { white-space: nowrap; }
+.legend b { font: 500 .85rem var(--font-mono); color: var(--ink); margin-right: .3rem; }
+
+.notice {
+  border: 1px solid var(--rule); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0;
+  background: var(--sheet); padding: .8rem 1rem; margin: 0 0 2rem; font-size: .93rem;
+}
+footer { border-top: 1px solid var(--rule); padding-top: 1.25rem; color: var(--ink-soft); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="cover">
+  <p class="eyebrow"><a href="code-overview.html">Books API Handbook</a> · Diagrams</p>
+  <h1>Books API Diagrams</h1>
+  <p class="lede">Class, sequence and flow diagrams drawn from the source code. They show how the classes fit together and what happens, step by step, when a file is imported.</p>
+</header>
+
+<div class="notice" id="offline" hidden>
+  The diagrams need an internet connection to load the Mermaid library, so you are seeing their source text instead. Connect, then reload the page.
+</div>
+
+<nav class="toc" aria-label="Diagrams">
+  <ol>
+    <li><a href="#packages">Package map</a></li>
+    <li><a href="#import-classes">Classes: import engine</a></li>
+    <li><a href="#web-classes">Classes: web &amp; data</a></li>
+    <li><a href="#seq-sync">Sequence: import now</a></li>
+    <li><a href="#seq-async">Sequence: background import</a></li>
+    <li><a href="#flow-vt">Flow: virtual-threads pipeline</a></li>
+  </ol>
+</nav>
+
+<section id="packages" aria-labelledby="h-pk">
+  <h2 id="h-pk"><span class="num">01</span>Package map</h2>
+  <p>Each arrow means "uses". Dependencies point one way only, so the import engine (<code>service.importer</code>) does not know about the controllers.</p>
+  <div class="frame"><pre class="mermaid">
+flowchart LR
+  config["config&lt;br/&gt;SecurityConfig · CorsConfig · OpenApiConfig"]
+  controller["controller&lt;br/&gt;Book · CsvImport · ExcelImport · Auth · Root controllers&lt;br/&gt;GlobalExceptionHandler"]
+  importer["service.importer&lt;br/&gt;BookImportService · strategies · readers&lt;br/&gt;ImportJob · SampleFileService"]
+  service["service&lt;br/&gt;BookService · BulkOperationGuard&lt;br/&gt;ImportResult · RandomBooks"]
+  impl["service.impl&lt;br/&gt;BookServiceImpl · BookBatchWriter"]
+  repo["repository&lt;br/&gt;BookRepository"]
+  entity["entity&lt;br/&gt;Book"]
+  db[("MySQL&lt;br/&gt;books")]
+  kc(["Keycloak"])
+
+  controller --> importer
+  controller --> service
+  importer --> service
+  importer --> impl
+  impl --> service
+  impl --> repo
+  repo --> entity
+  impl --> entity
+  importer --> entity
+  repo --> db
+  impl -- "JDBC batch insert" --> db
+  config -. "checks JWT with" .-> kc
+  </pre></div>
+</section>
+
+<section id="import-classes" aria-labelledby="h-ic">
+  <h2 id="h-ic"><span class="num">02</span>Class diagram: import engine</h2>
+  <p>This diagram shows the five design patterns. <strong>Strategy:</strong> <code>ImportStrategy</code> and its three classes. <strong>Template Method:</strong> <code>AbstractImportStrategy.run()</code> calls the abstract <code>doImport()</code>. <strong>Factory:</strong> <code>BookReaderFactory</code>. <strong>Iterator:</strong> <code>BookReader</code> and <code>BookRecord</code>. <strong>Facade:</strong> <code>BookImportService</code>. It is drawn in two parts.</p>
+  <div class="legend">
+    <span><b>◁──</b>extends</span>
+    <span><b>◁┄┄</b>implements</span>
+    <span><b>◇──</b>holds</span>
+    <span><b>◆──</b>owns</span>
+    <span><b>──▷</b>uses</span>
+    <span><b>┄┄▷</b>creates / depends on</span>
+    <span><b>+ - # ~</b>public · private · protected · package</span>
+    <span><b>underline</b>static</span>
+    <span><b>italic</b>abstract</span>
+  </div>
+
+  <h3 class="sub">2a · Strategies, facade and job</h3>
+  <div class="frame"><pre class="mermaid">
+classDiagram
+  direction TB
+
+  class BookImportService {
+    &lt;&lt;Facade&gt;&gt;
+    -Map~String, ImportStrategy~ strategies
+    -BookReaderFactory readerFactory
+    -BulkOperationGuard guard
+    +importNow(MultipartFile, ImportFormat, String) ImportResult
+    +importInBackground(MultipartFile, ImportFormat, String) void
+    +strategyNames() Set~String~
+    -strategy(String) ImportStrategy
+    -prepare(MultipartFile, ImportFormat) ImportJob
+  }
+
+  class ImportStrategy {
+    &lt;&lt;interface&gt;&gt;
+    +name() String
+    +run(ImportJob) ImportResult
+  }
+
+  class AbstractImportStrategy {
+    &lt;&lt;abstract · Template Method&gt;&gt;
+    #int BATCH_SIZE = 5000$
+    #BookBatchWriter batchWriter
+    +run(ImportJob) ImportResult
+    #doImport(BookReader)* ImportCounts
+  }
+
+  class TraditionalImportStrategy {
+    +String NAME = "traditional"$
+    #doImport(BookReader) ImportCounts
+  }
+  class VirtualThreadsImportStrategy {
+    +String NAME = "virtual-threads"$
+    ~int DB_WRITERS = 20$
+    #doImport(BookReader) ImportCounts
+    -submitBatch(...) void
+  }
+  class ParallelStreamImportStrategy {
+    +String NAME = "parallel-stream"$
+    -int parseParallelism
+    #doImport(BookReader) ImportCounts
+    -parseInDedicatedPool(List~BookRecord~) List~Book~
+  }
+
+  class ImportJob {
+    &lt;&lt;AutoCloseable&gt;&gt;
+    -String filename
+    -ImportFormat format
+    -Path file
+    -long sizeBytes
+    -Permit permit
+    +openReader() BookReader
+    +close() void
+  }
+
+  class BulkOperationGuard {
+    -Semaphore semaphore = 1
+    +acquire() Permit
+    +isBusy() boolean
+  }
+  class Permit["BulkOperationGuard.Permit"] {
+    -AtomicBoolean released
+    +close() void
+  }
+
+  class BookBatchWriter {
+    -JdbcTemplate jdbcTemplate
+    +insert(List~Book~) void
+  }
+  class ImportResult {
+    &lt;&lt;record&gt;&gt;
+    long imported
+    long skipped
+    long durationMs
+  }
+  class BookReader {
+    &lt;&lt;interface&gt;&gt;
+  }
+
+  ImportStrategy &lt;|.. AbstractImportStrategy
+  AbstractImportStrategy &lt;|-- TraditionalImportStrategy
+  AbstractImportStrategy &lt;|-- VirtualThreadsImportStrategy
+  AbstractImportStrategy &lt;|-- ParallelStreamImportStrategy
+
+  BookImportService "1" o-- "3" ImportStrategy : strategies by name
+  BookImportService --> BulkOperationGuard : acquire()
+  BookImportService ..> ImportJob : creates
+  BulkOperationGuard ..> Permit : creates
+  ImportJob *-- Permit
+
+  AbstractImportStrategy ..> ImportJob : run(job)
+  AbstractImportStrategy ..> BookReader : reads records
+  AbstractImportStrategy --> BookBatchWriter : insert 5000 rows
+  AbstractImportStrategy ..> ImportResult : returns
+  </pre></div>
+
+  <h3 class="sub">2b · Readers and file formats</h3>
+  <div class="frame"><pre class="mermaid">
+classDiagram
+  direction TB
+
+  class BookReaderFactory {
+    &lt;&lt;Factory&gt;&gt;
+    +open(ImportFormat, Path) BookReader
+  }
+  class ImportFormat {
+    &lt;&lt;enumeration&gt;&gt;
+    CSV
+    XLSX
+    +extension() String
+    +mediaType() String
+    +requireFilename(String) void
+  }
+  class BookReader {
+    &lt;&lt;interface · Iterator&gt;&gt;
+    +next() BookRecord
+    +position() long
+    +close() void
+  }
+  class BookRecord {
+    &lt;&lt;functional interface&gt;&gt;
+    +toBook() Book
+  }
+  class CsvBookReader {
+    -BufferedReader reader
+    -long lineNo
+    +next() BookRecord
+  }
+  class ExcelBookReader {
+    -Workbook workbook
+    -Iterator~Row~ rows
+    -long rowNo
+    +next() BookRecord
+    ~cellText(Cell)$ String
+  }
+  class CsvBookParser {
+    ~isBlank(String)$ boolean
+    ~parse(String)$ Book
+    ~splitFields(String)$ List~String~
+  }
+  class BookFieldMapper {
+    ~toBook(List~String~)$ Book
+  }
+  class SampleFileService {
+    +int MAX_ROWS = 1000000$
+    +filename(ImportFormat, int) String
+    +write(ImportFormat, int, OutputStream) void
+  }
+  class ImportJob {
+    +openReader() BookReader
+  }
+
+  ImportJob --> BookReaderFactory : openReader()
+  BookReaderFactory --> ImportFormat
+  BookReaderFactory ..> CsvBookReader : CSV
+  BookReaderFactory ..> ExcelBookReader : XLSX
+  BookReader &lt;|.. CsvBookReader
+  BookReader &lt;|.. ExcelBookReader
+  BookReader ..> BookRecord : next()
+  CsvBookReader ..> CsvBookParser : parse later
+  CsvBookParser ..> BookFieldMapper
+  ExcelBookReader ..> BookFieldMapper
+  SampleFileService --> ImportFormat
+  </pre></div>
+</section>
+
+<section id="web-classes" aria-labelledby="h-wc">
+  <h2 id="h-wc"><span class="num">03</span>Class diagram: web &amp; data layer</h2>
+  <p>The two import controllers share their code through <code>AbstractImportController</code>. Each one fixes the format it accepts, so the CSV endpoints only take <code>.csv</code> and the Excel endpoints only take <code>.xlsx</code>. Single books go through JPA; bulk rows go through <code>BookBatchWriter</code>.</p>
+  <div class="frame"><pre class="mermaid">
+classDiagram
+  direction TB
+
+  class AbstractImportController {
+    &lt;&lt;abstract&gt;&gt;
+    -BookImportService importService
+    -SampleFileService sampleFiles
+    -ImportFormat format
+    #runImport(MultipartFile, String strategy, boolean async) ResponseEntity
+    #sampleFile(int rows) ResponseEntity~StreamingResponseBody~
+  }
+  class CsvImportController {
+    &lt;&lt;RestController · /api/books&gt;&gt;
+    +importCsv(file, strategy, async) POST /import/csv
+    +importCsvTraditional(file)
+    +importCsvVirtualThreads(file)
+    +importCsvParallelStream(file)
+    +importCsvParallelFireAndForget(file)
+    +sampleCsv(rows) GET /sample/csv
+  }
+  class ExcelImportController {
+    &lt;&lt;RestController · /api/books&gt;&gt;
+    +importExcel(file, strategy, async) POST /import/excel
+    +importExcelTraditional(file)
+    +importExcelVirtualThreads(file)
+    +importExcelParallelStream(file)
+    +importExcelParallelFireAndForget(file)
+    +sampleExcel(rows) GET /sample/excel
+  }
+  class BookController {
+    &lt;&lt;RestController · /api/books&gt;&gt;
+    -BookService bookService
+    +all(int page) Page~Book~
+    +byId(Long) ResponseEntity~Book~
+    +create(Book) ResponseEntity~Book~
+    +delete(Long) ResponseEntity~Void~
+    +generateRandomBooks(int count) ResponseEntity~String~
+  }
+  class GlobalExceptionHandler {
+    &lt;&lt;RestControllerAdvice&gt;&gt;
+    +handleMaxUploadSizeExceededException() 413
+    +handleIllegalArgument() 400
+    +handleBulkOperationInProgress() 429
+  }
+
+  class BookService {
+    &lt;&lt;interface&gt;&gt;
+    +findPage(Pageable) Page~Book~
+    +findById(Long) Optional~Book~
+    +save(Book) Book
+    +deleteById(Long) boolean
+    +generateRandomBooks(int) void
+  }
+  class BookServiceImpl {
+    -BookRepository bookRepository
+    -BookBatchWriter batchWriter
+    -BulkOperationGuard guard
+    +generateRandomBooks(int) void
+    -runConcurrently(List~Runnable~) void
+  }
+  class BookImportService {
+    &lt;&lt;Facade&gt;&gt;
+    +importNow(...) ImportResult
+    +importInBackground(...) void
+  }
+  class SampleFileService {
+    +write(ImportFormat, int, OutputStream) void
+  }
+  class BulkOperationGuard {
+    +acquire() Permit
+  }
+  class BulkOperationInProgressException {
+    &lt;&lt;RuntimeException&gt;&gt;
+  }
+  class RandomBooks {
+    +create(long number)$ Book
+  }
+  class BookBatchWriter {
+    +insert(List~Book~) void
+  }
+  class BookRepository {
+    &lt;&lt;interface&gt;&gt;
+    extends JpaRepository~Book, Long~
+  }
+  class Book {
+    &lt;&lt;Entity · books&gt;&gt;
+    -Long id
+    -String title
+    -String author
+    -BigDecimal price
+  }
+
+  AbstractImportController &lt;|-- CsvImportController
+  AbstractImportController &lt;|-- ExcelImportController
+  AbstractImportController --> BookImportService
+  AbstractImportController --> SampleFileService
+
+  BookController --> BookService
+  BookService &lt;|.. BookServiceImpl
+  BookServiceImpl --> BookRepository
+  BookServiceImpl --> BookBatchWriter
+  BookServiceImpl --> BulkOperationGuard
+  BookServiceImpl ..> RandomBooks
+  SampleFileService ..> RandomBooks
+  BookImportService --> BulkOperationGuard
+  BulkOperationGuard ..> BulkOperationInProgressException : throws when busy
+  GlobalExceptionHandler ..> BulkOperationInProgressException : handles
+
+  BookRepository ..> Book
+  BookBatchWriter ..> Book
+  RandomBooks ..> Book
+  </pre></div>
+</section>
+
+<section id="seq-sync" aria-labelledby="h-ss">
+  <h2 id="h-ss"><span class="num">04</span>Sequence: import now</h2>
+  <p>The path of <code>POST /api/books/import/excel?strategy=virtual-threads</code> through the code. CSV works the same way with <code>CsvBookReader</code>.</p>
+  <div class="frame"><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor C as Client
+  participant S as Security filter
+  participant X as ExcelImportController
+  participant F as BookImportService
+  participant G as BulkOperationGuard
+  participant J as ImportJob
+  participant V as VirtualThreadsImportStrategy
+  participant R as ExcelBookReader
+  participant W as BookBatchWriter
+  participant D as MySQL
+
+  C->>S: POST /api/books/import/excel (file, Bearer JWT)
+  alt token missing or invalid
+    S-->>C: 401
+  end
+  S->>X: importExcel(file, "virtual-threads", false)
+  X->>F: importNow(file, XLSX, "virtual-threads")
+  alt unknown strategy, empty file or not .xlsx
+    F-->>C: 400 (via GlobalExceptionHandler)
+  end
+  F->>G: acquire()
+  alt another bulk job is running
+    G-->>C: 429 BulkOperationInProgressException
+  end
+  G-->>F: Permit
+  F->>F: transferTo(temp file)
+  F->>J: new ImportJob(file, format, permit)
+  F->>V: run(job)
+  V->>J: openReader()
+  J->>R: BookReaderFactory.open(XLSX, path)
+  loop until next() returns null
+    V->>R: next()
+    R-->>V: BookRecord
+    Note over V: every 5000 records: start a virtual thread&lt;br/&gt;(max 20 at once, reader waits when full)
+    par each batch thread
+      V->>V: record.toBook() for 5000 records
+      V->>W: insert(batch)
+      W->>D: INSERT ... (one transaction)
+    end
+  end
+  V->>V: wait for all batches
+  V-->>F: ImportResult(imported, skipped, ms)
+  F->>J: close()
+  J->>G: Permit.close()
+  Note over J: temp file deleted
+  F-->>X: ImportResult
+  X-->>C: 200 "XLSX import completed ... N books imported"
+  </pre></div>
+</section>
+
+<section id="seq-async" aria-labelledby="h-sa">
+  <h2 id="h-sa"><span class="num">05</span>Sequence: background import</h2>
+  <p>With <code>async=true</code>, or the <code>*-parallel-fire-and-forget</code> endpoints, the request returns <code>202</code> as soon as the file is saved. The background thread owns the job and closes it at the end, even when the import fails.</p>
+  <div class="frame"><pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor C as Client
+  participant X as CsvImportController
+  participant F as BookImportService
+  participant G as BulkOperationGuard
+  participant J as ImportJob
+  participant T as Background virtual thread
+  participant V as ImportStrategy
+  participant D as MySQL
+
+  C->>X: POST /api/books/import/csv?async=true
+  X->>F: importInBackground(file, CSV, "virtual-threads")
+  F->>G: acquire()
+  G-->>F: Permit
+  F->>J: new ImportJob(temp file, permit)
+  F->>T: Thread.ofVirtual().start(...)
+  F-->>X: return
+  X-->>C: 202 "CSV import accepted"
+  Note over C,X: the client is free now
+
+  T->>V: run(job)
+  V->>D: batches of 5000 rows
+  alt success
+    V-->>T: ImportResult (logged)
+  else failure
+    V-->>T: exception (logged, not sent to the client)
+  end
+  T->>J: close()
+  J->>G: Permit.close()
+  Note over J,G: temp file deleted, next import may start
+  </pre></div>
+</section>
+
+<section id="flow-vt" aria-labelledby="h-fv">
+  <h2 id="h-fv"><span class="num">06</span>Flow: virtual-threads pipeline</h2>
+  <p>This is the inside of <code>VirtualThreadsImportStrategy.doImport()</code>. A semaphore with 20 permits limits the batches in flight. When all 20 are busy the reader waits (backpressure), which keeps memory and database connections bounded. After the first failure, reading stops.</p>
+  <div class="frame"><pre class="mermaid">
+flowchart TD
+  start([doImport]) --> read[reader.next]
+  read --> eof{record is null?}
+  eof -- no --> add[add record to chunk]
+  add --> full{chunk has 5000?}
+  full -- no --> failed{a batch failed?}
+  failed -- no --> read
+  failed -- yes --> stop[stop reading]
+  full -- yes --> permit{writers.tryAcquire}
+  permit -- "no: all 20 busy" --> wait[wait for a free writer]
+  wait --> launch
+  permit -- yes --> launch[start virtual thread&lt;br/&gt;import-batch-N]
+  launch --> failed
+  eof -- yes --> last{partial chunk left?}
+  last -- yes --> launch2[start last batch thread]
+  last -- no --> drain
+  launch2 --> drain[writers.acquire 20&lt;br/&gt;wait for all batches]
+  stop --> drain
+  drain --> ok{any failure?}
+  ok -- no --> done([return ImportCounts])
+  ok -- yes --> err([throw IllegalStateException&lt;br/&gt;committed batches stay])
+
+  subgraph thread [each batch thread]
+    direction TB
+    p1[record.toBook x 5000&lt;br/&gt;count invalid as skipped] --> p2[BookBatchWriter.insert&lt;br/&gt;one transaction]
+    p2 --> p3[writers.release]
+    p2 -. exception .-> p4[record failure] --> p3
+  end
+  launch -.-> p1
+  launch2 -.-> p1
+  </pre></div>
+</section>
+
+<footer>
+  Drawn from the source on 25 October 2026. Diagrams render with Mermaid 11.4.1. Back to the <a href="code-overview.html">Books API Handbook</a>.
+</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  var blocks = Array.prototype.slice.call(document.querySelectorAll("pre.mermaid"));
+  blocks.forEach(function (el) { el.dataset.src = el.textContent; });
+
+  if (!window.mermaid) {
+    document.getElementById("offline").hidden = false;
+    return;
+  }
+
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  function token(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function render() {
+    var dark = isDark();
+    var ink = token("--ink"), soft = token("--ink-soft"), node = token("--node"),
+        line = token("--node-line"), sheet = token("--sheet"), accent = token("--binding"),
+        accentSoft = token("--binding-soft"), rule = token("--rule");
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: "base",
+      fontFamily: '"IBM Plex Sans", "Segoe UI", system-ui, sans-serif',
+      themeVariables: {
+        darkMode: dark,
+        background: sheet,
+        fontSize: "14px",
+        primaryColor: node,
+        primaryTextColor: ink,
+        primaryBorderColor: line,
+        secondaryColor: accentSoft,
+        tertiaryColor: sheet,
+        lineColor: soft,
+        textColor: ink,
+        mainBkg: node,
+        nodeBorder: line,
+        clusterBkg: accentSoft,
+        clusterBorder: accent,
+        titleColor: ink,
+        edgeLabelBackground: sheet,
+        actorBkg: node,
+        actorBorder: line,
+        actorTextColor: ink,
+        actorLineColor: rule,
+        signalColor: soft,
+        signalTextColor: ink,
+        labelBoxBkgColor: accentSoft,
+        labelBoxBorderColor: accent,
+        labelTextColor: ink,
+        loopTextColor: ink,
+        noteBkgColor: accentSoft,
+        noteBorderColor: accent,
+        noteTextColor: ink,
+        activationBkgColor: accentSoft,
+        activationBorderColor: accent,
+        sequenceNumberColor: sheet,
+        classText: ink
+      },
+      flowchart: { useMaxWidth: false, htmlLabels: true, curve: "basis" },
+      sequence: { useMaxWidth: false, mirrorActors: false, showSequenceNumbers: true },
+      class: { useMaxWidth: false }
+    });
+    blocks.forEach(function (el) {
+      el.removeAttribute("data-processed");
+      el.innerHTML = "";
+      el.textContent = el.dataset.src;
+    });
+    mermaid.run({ nodes: blocks }).then(naturalSize).catch(function (err) { console.error(err); });
+  }
+
+  // Mermaid shrinks wide diagrams to fit the frame, which makes big class diagrams unreadable.
+  // Show each one at its real size; the frame scrolls sideways when it is wider than the page.
+  function naturalSize() {
+    blocks.forEach(function (el) {
+      var svg = el.querySelector("svg");
+      if (!svg || !svg.viewBox || !svg.viewBox.baseVal) return;
+      var box = svg.viewBox.baseVal;
+      svg.style.maxWidth = "none";
+      svg.setAttribute("width", Math.ceil(box.width));
+      svg.setAttribute("height", Math.ceil(box.height));
+
+      var frame = el.closest(".frame");
+      var wide = frame && frame.scrollWidth > frame.clientWidth + 4;
+      if (frame) {
+        frame.classList.toggle("wide", wide);
+        // Open wide diagrams at their middle instead of an empty corner
+        if (wide) frame.scrollLeft = (frame.scrollWidth - frame.clientWidth) / 2;
+      }
+    });
+  }
+
+  render();
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+    new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  } catch (e) { /* older browsers: keep the first render */ }
+})();
+</script>
+</body>
+</html>

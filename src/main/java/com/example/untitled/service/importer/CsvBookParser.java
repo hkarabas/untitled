@@ -1,8 +1,7 @@
-package com.example.untitled.service.impl;
+package com.example.untitled.service.importer;
 
 import com.example.untitled.entity.Book;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,21 +22,7 @@ final class CsvBookParser {
      * @return the parsed book, or {@code null} if the line is malformed or has an invalid price
      */
     static Book parse(String line) {
-        List<String> fields = splitFields(line);
-        if (fields.size() < 3) {
-            return null;
-        }
-        String title = fields.get(0).trim();
-        String author = fields.get(1).trim();
-        if (title.isEmpty() || author.isEmpty()) {
-            return null;
-        }
-        try {
-            BigDecimal price = new BigDecimal(fields.get(2).trim());
-            return new Book(title, author, price);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return BookFieldMapper.toBook(splitFields(line));
     }
 
     static List<String> splitFields(String line) {

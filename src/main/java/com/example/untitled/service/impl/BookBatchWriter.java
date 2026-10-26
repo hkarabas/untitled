@@ -15,13 +15,13 @@ import java.util.List;
  * combined with {@code rewriteBatchedStatements=true} this becomes multi-row INSERTs.
  */
 @Component
-class BookBatchWriter {
+public class BookBatchWriter {
 
     private static final String INSERT_SQL = "INSERT INTO books (title, author, price) VALUES (?, ?, ?)";
 
     private final JdbcTemplate jdbcTemplate;
 
-    BookBatchWriter(JdbcTemplate jdbcTemplate) {
+    public BookBatchWriter(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

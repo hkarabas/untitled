@@ -3,11 +3,12 @@ package com.example.untitled.service;
 import com.example.untitled.entity.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.Optional;
 
+/**
+ * CRUD and random generation. File imports live in {@link com.example.untitled.service.importer.BookImportService}.
+ */
 public interface BookService {
     Page<Book> findPage(Pageable pageable);
     Optional<Book> findById(Long id);
@@ -19,8 +20,4 @@ public interface BookService {
     boolean deleteById(Long id);
 
     void generateRandomBooks(int count);
-    ImportResult importCsvTraditional(MultipartFile file) throws IOException;
-    ImportResult importCsvVirtualThreads(MultipartFile file) throws IOException;
-    void importCsvParallelFireAndForget(MultipartFile file) throws IOException;
-    ImportResult importCsvParallelStream(MultipartFile file) throws IOException;
 }

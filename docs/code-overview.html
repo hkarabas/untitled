@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Books API Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: engineering handbook — sticky contents rail on the left, one reading column (~72ch) on the right;
+   stacks to a single column on phones. Book-binding accent (oxblood) on cool, slightly blue paper. */
+:root {
+  --paper: #f6f7f9;
+  --sheet: #ffffff;
+  --ink: #1d2330;
+  --ink-soft: #4f586a;
+  --rule: #dde1e8;
+  --binding: #8e2b3a;
+  --binding-soft: #f4e6e8;
+  --code-bg: #eef1f5;
+  --ok: #2f7a4d;
+  --warn: #9a6200;
+  --bar-csv: #8e2b3a;
+  --bar-xlsx: #2f6f86;
+
+  --font-display: "Literata", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: 2.125rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12151c;
+    --sheet: #191d26;
+    --ink: #e4e7ee;
+    --ink-soft: #a3abbb;
+    --rule: #2c3240;
+    --binding: #e2808f;
+    --binding-soft: #33202a;
+    --code-bg: #222835;
+    --ok: #7cc79a;
+    --warn: #e0b25a;
+    --bar-csv: #e2808f;
+    --bar-xlsx: #74b8cf;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12151c;
+  --sheet: #191d26;
+  --ink: #e4e7ee;
+  --ink-soft: #a3abbb;
+  --rule: #2c3240;
+  --binding: #e2808f;
+  --binding-soft: #33202a;
+  --code-bg: #222835;
+  --ok: #7cc79a;
+  --warn: #e0b25a;
+  --bar-csv: #e2808f;
+  --bar-xlsx: #74b8cf;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--step-0)/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.page {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 3rem;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding-block: 2.5rem 4rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (max-width: 52rem) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding-block: 1.5rem 3rem; }
+}
+
+/* Contents rail */
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); align-self: start; }
+nav.toc .label {
+  font: 600 var(--step--1)/1 var(--font-body);
+  text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft);
+  margin: 0 0 .75rem;
+}
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .15rem; border-left: 1px solid var(--rule); }
+nav.toc a {
+  display: block; padding: .25rem 0 .25rem .9rem; margin-left: -1px;
+  border-left: 2px solid transparent;
+  color: var(--ink-soft); text-decoration: none; font-size: .9rem;
+}
+nav.toc a:hover { color: var(--binding); border-left-color: var(--binding); }
+nav.toc a:focus-visible { outline: 2px solid var(--binding); outline-offset: 2px; }
+@media (max-width: 52rem) {
+  nav.toc { position: static; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; }
+  nav.toc ol { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); border-left: 0; }
+  nav.toc a { padding-left: 0; border-left: 0; }
+}
+
+main { min-width: 0; max-width: 46rem; }
+
+/* Title block */
+header.cover { border-bottom: 1px solid var(--rule); padding-bottom: 1.75rem; margin-bottom: 2.5rem; }
+.eyebrow {
+  font: 600 var(--step--1)/1 var(--font-body);
+  text-transform: uppercase; letter-spacing: .1em; color: var(--binding); margin: 0 0 .9rem;
+}
+h1 {
+  font: 650 var(--step-3)/1.15 var(--font-display);
+  margin: 0 0 .9rem; text-wrap: balance; letter-spacing: -.01em;
+}
+.lede { font-size: var(--step-1); color: var(--ink-soft); margin: 0; max-width: 40rem; }
+dl.facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 1rem 1.5rem; margin: 1.75rem 0 0;
+}
+dl.facts div { min-width: 0; }
+dl.facts dt { font-size: var(--step--1); color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; }
+dl.facts dd { margin: .2rem 0 0; font: 500 var(--step-1)/1.3 var(--font-body); font-variant-numeric: tabular-nums; }
+
+/* Sections */
+section { margin-bottom: 3.25rem; scroll-margin-top: 1.5rem; }
+h2 {
+  font: 650 var(--step-2)/1.25 var(--font-display);
+  margin: 0 0 1rem; text-wrap: balance;
+  display: flex; align-items: baseline; gap: .6rem;
+}
+h2 .num { font: 500 var(--step--1)/1 var(--font-mono); color: var(--binding); }
+h3 { font: 600 var(--step-1)/1.3 var(--font-body); margin: 1.75rem 0 .6rem; }
+p { margin: 0 0 1rem; max-width: 68ch; }
+ul, ol.steps { margin: 0 0 1rem; padding-left: 1.25rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--binding); }
+strong { font-weight: 600; }
+
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+:not(pre) > code { background: var(--code-bg); padding: .08em .35em; border-radius: 3px; overflow-wrap: anywhere; }
+pre {
+  background: var(--code-bg); border-radius: 6px; padding: 1rem 1.1rem; margin: 0 0 1.25rem;
+  overflow-x: auto; font: 400 .84rem/1.55 var(--font-mono);
+}
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 0 0 1.5rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { text-align: left; padding: .55rem .8rem; vertical-align: top; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 600; font-size: var(--step--1); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); background: var(--paper); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { white-space: nowrap; }
+tr.group td { background: var(--binding-soft); font-weight: 600; font-size: .85rem; color: var(--binding); }
+
+.verb {
+  display: inline-block; min-width: 3.4rem; text-align: center;
+  font: 500 .72rem/1.6 var(--font-mono); letter-spacing: .03em;
+  border: 1px solid currentColor; border-radius: 3px; padding: 0 .3rem;
+}
+.verb.get { color: var(--ok); }
+.verb.post { color: var(--bar-xlsx); }
+.verb.del { color: var(--binding); }
+.auth { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
+
+/* Architecture stack */
+.stack { display: grid; gap: .5rem; margin: 0 0 1.25rem; }
+.layer {
+  display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: .75rem; align-items: center;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: .7rem .9rem;
+}
+.layer .name { font: 600 var(--step--1)/1.3 var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; min-width: 0; }
+.chip {
+  font: 500 .8rem/1.4 var(--font-mono); padding: .2rem .5rem; border-radius: 3px;
+  background: var(--code-bg); color: var(--ink); overflow-wrap: anywhere;
+}
+.chip.key { background: var(--binding-soft); color: var(--binding); }
+.arrow { text-align: center; color: var(--ink-soft); font-size: .8rem; line-height: 1; }
+@media (max-width: 30rem) { .layer { grid-template-columns: minmax(0, 1fr); gap: .4rem; } }
+
+/* Import flow */
+ol.flow { list-style: none; counter-reset: step; margin: 0 0 1.25rem; padding: 0; display: grid; gap: .6rem; }
+ol.flow li {
+  counter-increment: step; position: relative; margin: 0;
+  padding: .7rem .9rem .7rem 3rem; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px;
+}
+ol.flow li::before {
+  content: counter(step); position: absolute; left: .9rem; top: .7rem;
+  width: 1.4rem; height: 1.4rem; border-radius: 50%;
+  background: var(--binding); color: var(--sheet);
+  font: 600 .75rem/1.4rem var(--font-body); text-align: center;
+}
+ol.flow .where { display: block; font: 400 .78rem/1.4 var(--font-mono); color: var(--ink-soft); margin-top: .2rem; }
+
+/* Bar chart */
+figure.chart { margin: 0 0 1.5rem; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.1rem 1.1rem; }
+figure.chart figcaption { font-size: .85rem; color: var(--ink-soft); margin-top: .9rem; }
+.legend { display: flex; gap: 1.25rem; font-size: .82rem; color: var(--ink-soft); margin-bottom: .9rem; flex-wrap: wrap; }
+.legend span::before { content: ""; display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .4rem; vertical-align: -.05rem; }
+.legend .csv::before { background: var(--bar-csv); }
+.legend .xlsx::before { background: var(--bar-xlsx); }
+.rows { display: grid; gap: .85rem; }
+.row { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .75rem; align-items: center; }
+.row .label { font: 500 .82rem/1.3 var(--font-mono); }
+.bars { display: grid; gap: .25rem; min-width: 0; }
+.bar { display: flex; align-items: center; gap: .45rem; font: 400 .78rem/1 var(--font-mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.bar i { display: block; height: .7rem; border-radius: 2px; flex: none; }
+.bar.csv i { background: var(--bar-csv); }
+.bar.xlsx i { background: var(--bar-xlsx); }
+.axis { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .75rem; margin-top: .6rem; }
+.ticks { position: relative; height: 1rem; border-top: 1px solid var(--rule); font: 400 .72rem/1 var(--font-mono); color: var(--ink-soft); }
+.ticks span { position: absolute; top: .3rem; transform: translateX(-50%); }
+.ticks span:first-child { transform: none; }
+.ticks span:last-child { transform: translateX(-100%); }
+@media (max-width: 30rem) { .row, .axis { grid-template-columns: 6.5rem minmax(0, 1fr); } }
+
+/* Notes */
+.note {
+  border: 1px solid var(--rule); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0;
+  background: var(--sheet); padding: .8rem 1rem; margin: 0 0 1.25rem; font-size: .93rem;
+}
+.note strong { color: var(--warn); }
+ul.issues { list-style: none; padding: 0; display: grid; gap: .6rem; }
+ul.issues li { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: .75rem .95rem; }
+.sev { display: inline-block; font: 600 .7rem/1.5 var(--font-body); text-transform: uppercase; letter-spacing: .06em; padding: 0 .45rem; border-radius: 3px; margin-right: .45rem; vertical-align: .08rem; }
+.sev.high { background: var(--binding-soft); color: var(--binding); }
+.sev.med { background: var(--code-bg); color: var(--warn); }
+.sev.low { background: var(--code-bg); color: var(--ink-soft); }
+
+footer { border-top: 1px solid var(--rule); padding-top: 1.25rem; color: var(--ink-soft); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav class="toc" aria-label="Contents">
+  <p class="label">Contents</p>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#flow">How an import runs</a></li>
+    <li><a href="#patterns">Design patterns</a></li>
+    <li><a href="#strategies">Import strategies</a></li>
+    <li><a href="#formats">File formats</a></li>
+    <li><a href="#api">API endpoints</a></li>
+    <li><a href="#files">Source files</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#run">Run &amp; deploy</a></li>
+    <li><a href="#tests">Tests</a></li>
+    <li><a href="#open">Open issues</a></li>
+    <li><a href="code-diagrams.html">Diagrams ↗</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="cover" id="overview">
+  <p class="eyebrow">Project <span class="mono">untitled</span> · com.example.untitled</p>
+  <h1>Books API Handbook</h1>
+  <p class="lede">A Spring Boot REST service that stores books in MySQL and loads them in bulk from CSV and Excel files. It compares several ways to import large files, and Keycloak protects every data endpoint.</p>
+  <dl class="facts">
+    <div><dt>Stack</dt><dd>Spring Boot 4.1.1 · Java 25</dd></div>
+    <div><dt>Database</dt><dd>MySQL 8.0</dd></div>
+    <div><dt>Login</dt><dd>Keycloak 23 (JWT)</dd></div>
+    <div><dt>Main code</dt><dd>36 classes · 2,277 lines</dd></div>
+    <div><dt>Endpoints</dt><dd>26</dd></div>
+    <div><dt>Tests</dt><dd>56 unit · 11 integration</dd></div>
+  </dl>
+</header>
+
+<section aria-labelledby="h-what">
+  <h2 id="h-what"><span class="num">00</span>What the service does</h2>
+  <ul>
+    <li><strong>Book CRUD:</strong> list (100 per page), read, create and delete books. A book has a title, an author and a price.</li>
+    <li><strong>Bulk import</strong> from <code>.csv</code> or <code>.xlsx</code> files of up to 200&nbsp;MB, with three processing strategies, either during the request or in the background.</li>
+    <li><strong>Random data:</strong> insert up to 1,000,000 random books directly, or download a random CSV or Excel file to test the import with.</li>
+    <li><strong>Protection:</strong> only one bulk job runs at a time (others get <code>429</code>), and at most 20 database writers run at once, so normal requests still get a connection.</li>
+  </ul>
+</section>
+
+<section id="architecture" aria-labelledby="h-arch">
+  <h2 id="h-arch"><span class="num">01</span>Architecture</h2>
+  <p>Requests pass down through these layers. The import code lives in its own package, <code>service.importer</code>, and never depends on the controllers. Full class and sequence diagrams are on the <a href="code-diagrams.html">diagrams page</a>.</p>
+  <div class="stack" role="list">
+    <div class="layer" role="listitem"><span class="name">Client</span><div class="chips"><span class="chip">Postman</span><span class="chip">curl</span><span class="chip">Swagger UI</span><span class="chip">shell scripts</span></div></div>
+    <div class="arrow" aria-hidden="true">↓ Bearer JWT</div>
+    <div class="layer" role="listitem"><span class="name">Security</span><div class="chips"><span class="chip key">SecurityConfig</span><span class="chip">CorsConfig</span><span class="chip">Keycloak :8180</span></div></div>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <div class="layer" role="listitem"><span class="name">Controllers</span><div class="chips"><span class="chip">BookController</span><span class="chip key">CsvImportController</span><span class="chip key">ExcelImportController</span><span class="chip">AuthController</span><span class="chip">RootController</span><span class="chip">GlobalExceptionHandler</span></div></div>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <div class="layer" role="listitem"><span class="name">Services</span><div class="chips"><span class="chip">BookServiceImpl</span><span class="chip key">BookImportService</span><span class="chip">SampleFileService</span><span class="chip">BulkOperationGuard</span></div></div>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <div class="layer" role="listitem"><span class="name">Importer</span><div class="chips"><span class="chip">TraditionalImportStrategy</span><span class="chip">VirtualThreadsImportStrategy</span><span class="chip">ParallelStreamImportStrategy</span><span class="chip">BookReaderFactory</span><span class="chip">CsvBookReader</span><span class="chip">ExcelBookReader</span></div></div>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <div class="layer" role="listitem"><span class="name">Data</span><div class="chips"><span class="chip">BookRepository (JPA)</span><span class="chip key">BookBatchWriter (JDBC)</span><span class="chip">HikariCP · 30</span><span class="chip">MySQL books_db</span></div></div>
+  </div>
+  <p>Single-row CRUD goes through Spring Data JPA. Bulk inserts skip Hibernate and go through <code>BookBatchWriter</code>, which calls <code>JdbcTemplate.batchUpdate</code>. Hibernate cannot batch inserts when ids come from MySQL <code>AUTO_INCREMENT</code>. With <code>rewriteBatchedStatements=true</code>, the MySQL driver sends each batch as a few multi-row <code>INSERT</code> statements.</p>
+</section>
+
+<section id="flow" aria-labelledby="h-flow">
+  <h2 id="h-flow"><span class="num">02</span>How an import runs</h2>
+  <p>This is the path of <code>POST /api/books/import/excel?strategy=virtual-threads</code>. CSV takes the same path with a different reader.</p>
+  <ol class="flow">
+    <li>The controller fixes the format, <strong>XLSX</strong> or <strong>CSV</strong>, so an Excel endpoint never reads a CSV file.<span class="where">ExcelImportController → AbstractImportController.runImport()</span></li>
+    <li>The facade checks the strategy name, rejects empty files and checks the file extension. Any problem returns <code>400</code>.<span class="where">BookImportService.importNow() → prepare()</span></li>
+    <li>It takes the single bulk-operation permit. If another import or generation is running, the answer is <code>429</code>.<span class="where">BulkOperationGuard.acquire()</span></li>
+    <li>The upload is moved to a temp file. Tomcat renames the file instead of copying it. The temp file and the permit are wrapped in one <code>ImportJob</code>.<span class="where">MultipartFile.transferTo() → new ImportJob(...)</span></li>
+    <li>The strategy runs its fixed steps: open a reader, import, measure the time, log the result and close the reader.<span class="where">AbstractImportStrategy.run() → doImport(reader)</span></li>
+    <li>The reader returns records one at a time. Each 5000-record batch is parsed and inserted on its own virtual thread, with at most 20 batches in flight.<span class="where">BookReaderFactory → ExcelBookReader.next() · VirtualThreadsImportStrategy.submitBatch()</span></li>
+    <li>Each batch is one transaction of 5000 rows.<span class="where">BookBatchWriter.insert() · JdbcTemplate.batchUpdate()</span></li>
+    <li>Closing the job deletes the temp file and releases the permit, even when the import fails.<span class="where">ImportJob.close()</span></li>
+  </ol>
+  <p>With <code>async=true</code>, steps 1–4 run in the request, which then returns <code>202</code>. Steps 5–8 run on a background virtual thread that owns the job and closes it at the end.</p>
+</section>
+
+<section id="patterns" aria-labelledby="h-pat">
+  <h2 id="h-pat"><span class="num">03</span>Design patterns</h2>
+  <p>Every strategy works with every format, and each part can change without touching the others.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Pattern</th><th>Where</th><th>What it gives</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Strategy</strong></td><td><code>ImportStrategy</code> + 3 classes</td><td>Each import method is a small class. Spring injects them all, and the facade finds one by its <code>name()</code>.</td></tr>
+        <tr><td><strong>Template Method</strong></td><td><code>AbstractImportStrategy.run()</code></td><td>The shared steps (open, time, log, close) are written once. Subclasses only write <code>doImport()</code>.</td></tr>
+        <tr><td><strong>Factory</strong></td><td><code>BookReaderFactory</code></td><td>Chooses <code>CsvBookReader</code> or <code>ExcelBookReader</code> for an <code>ImportFormat</code>.</td></tr>
+        <tr><td><strong>Iterator</strong></td><td><code>BookReader.next()</code>, <code>BookRecord</code></td><td>Strategies read format-free records one by one. CSV records are parsed later, on worker threads.</td></tr>
+        <tr><td><strong>Facade</strong></td><td><code>BookImportService</code></td><td>One entry point that hides validation, locking, temp files and threading.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>To add a strategy,</strong> create a new <code>@Component</code> that extends <code>AbstractImportStrategy</code>. Spring picks it up automatically. <strong>To add a format,</strong> add an <code>ImportFormat</code> constant, a <code>BookReader</code> class and one <code>case</code> in <code>BookReaderFactory</code>.</p>
+</section>
+
+<section id="strategies" aria-labelledby="h-str">
+  <h2 id="h-str"><span class="num">04</span>Import strategies</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>How it works</th><th>Memory</th><th>Log tag</th></tr></thead>
+      <tbody>
+        <tr><td><code>traditional</code></td><td>One thread reads, parses and inserts batches in turn. This is the baseline.</td><td>Bounded</td><td>–</td></tr>
+        <tr><td><code>virtual-threads</code></td><td>A streaming pipeline with one virtual thread per 5000-record batch and at most 20 in flight. When all 20 are busy, reading waits. The first failure stops reading.</td><td>Bounded (≤ 20 batches)</td><td><code>[vt]</code></td></tr>
+        <tr><td><code>parallel-stream</code></td><td>Reads every record, parses them with <code>parallelStream()</code> in its own ForkJoinPool, then inserts batches one at a time.</td><td>Whole file</td><td><code>[ps]</code></td></tr>
+        <tr><td><em>background</em></td><td>Any strategy with <code>async=true</code>. The old fire-and-forget endpoints use <code>virtual-threads</code>.</td><td>As the strategy</td><td><code>[bg]</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Measured time for 100,000 rows</h3>
+  <figure class="chart" aria-labelledby="chart-cap">
+    <div class="legend"><span class="csv">CSV</span><span class="xlsx">Excel (.xlsx)</span></div>
+    <div class="rows">
+      <div class="row"><span class="label">traditional</span><div class="bars">
+        <div class="bar csv"><i style="width:42.3%"></i>381 ms</div>
+        <div class="bar xlsx"><i style="width:98.2%"></i>884 ms</div></div></div>
+      <div class="row"><span class="label">virtual-threads</span><div class="bars">
+        <div class="bar csv"><i style="width:16.6%"></i>149 ms</div>
+        <div class="bar xlsx"><i style="width:57.7%"></i>519 ms</div></div></div>
+      <div class="row"><span class="label">parallel-stream</span><div class="bars">
+        <div class="bar csv"><i style="width:39.1%"></i>352 ms</div>
+        <div class="bar xlsx"><i style="width:89.3%"></i>804 ms</div></div></div>
+      <div class="row"><span class="label">background</span><div class="bars">
+        <div class="bar csv"><i style="width:24%"></i>216 ms</div>
+        <div class="bar xlsx"><i style="width:57.2%"></i>515 ms</div></div></div>
+    </div>
+    <div class="axis" aria-hidden="true"><span></span><div class="ticks"><span style="left:0">0</span><span style="left:33.33%">300</span><span style="left:66.67%">600</span><span style="left:100%">900 ms</span></div></div>
+    <figcaption id="chart-cap">One run of <code>BookInsertIT</code> against MySQL 8.0 in Docker on the development Mac. The bar widths are drawn to the scale below, but treat the numbers as approximate. Excel is 2–3× slower than CSV because the reader decodes zipped XML on one thread.</figcaption>
+  </figure>
+  <p>For 1M CSV rows, earlier tests showed that MySQL insert speed is the limit, at about 640,000 rows per second. Changing the batch size (2000–10,000) or the writer count (10–28) made no real difference. In <code>parallel-stream</code>, parsing takes about 5% of the time and the one-at-a-time inserts take the other 95%.</p>
+</section>
+
+<section id="formats" aria-labelledby="h-fmt">
+  <h2 id="h-fmt"><span class="num">05</span>File formats</h2>
+  <p>Both formats use three columns in this order: <code>title</code>, <code>author</code>, <code>price</code>. The same rules apply to both: a record is valid when the title and author are not empty and the price is a number. Invalid records, such as a header row, are skipped and counted. Blank lines and rows are ignored.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th>CSV</th><th>Excel</th></tr></thead>
+      <tbody>
+        <tr><td>Extension</td><td><code>.csv</code></td><td><code>.xlsx</code> only (old <code>.xls</code> is rejected)</td></tr>
+        <tr><td>Reading</td><td>UTF-8, line by line; quoted fields and escaped quotes (<code>""</code>) supported</td><td>First sheet, columns A–C, streamed with excel-streaming-reader 5.3.2 on Apache POI 5.5.1 (1000 rows in memory)</td></tr>
+        <tr><td>Cells</td><td>Text</td><td>Text or number cells; formulas use their cached result; <code>1984</code> stays <code>1984</code>, not <code>1984.0</code></td></tr>
+        <tr><td>Example row</td><td><code>"The Infinite Quest 1","Michael Martin",84.97</code></td><td>A: The Infinite Quest 1 · B: Michael Martin · C: 84.97</td></tr>
+        <tr><td>Broken file</td><td>Bad lines are skipped</td><td><code>400</code>: Not a valid .xlsx file</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="api" aria-labelledby="h-api">
+  <h2 id="h-api"><span class="num">06</span>API endpoints</h2>
+  <p>Base URL in Docker: <code>http://localhost:8080</code>. Swagger UI: <code>/swagger-ui.html</code>. Upload endpoints take <code>multipart/form-data</code> with the field <code>file</code>. The <code>strategy</code> parameter is <code>traditional</code>, <code>virtual-threads</code> (the default) or <code>parallel-stream</code>.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th><th>Access</th></tr></thead>
+      <tbody>
+        <tr class="group"><td colspan="4">Books · BookController</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/books?page=0</code></td><td>One page of 100 books, by id</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/books/{id}</code></td><td>One book, or 404</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books</code></td><td>Create a book from validated JSON; returns 201</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb del">DELETE</span></td><td><code>/api/books/{id}</code></td><td>Delete; 204, or 404 if missing</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/generate-random?count=</code></td><td>Insert 1–1,000,000 random books</td><td class="auth">USER/ADMIN</td></tr>
+
+        <tr class="group"><td colspan="4">CSV import · CsvImportController (only .csv)</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import/csv?strategy=&amp;async=</code></td><td>Import a CSV file; 200, or 202 with <code>async=true</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-csv-traditional</code></td><td>Shortcut: <code>strategy=traditional</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-csv-virtual-threads</code></td><td>Shortcut: <code>strategy=virtual-threads</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-csv-parallel-stream</code></td><td>Shortcut: <code>strategy=parallel-stream</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-csv-parallel-fire-and-forget</code></td><td>Shortcut: virtual-threads in the background (202)</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/books/sample/csv?rows=100000</code></td><td>Download a random CSV file (header + rows)</td><td class="auth">USER/ADMIN</td></tr>
+
+        <tr class="group"><td colspan="4">Excel import · ExcelImportController (only .xlsx)</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import/excel?strategy=&amp;async=</code></td><td>Import an Excel file; 200, or 202 with <code>async=true</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-excel-traditional</code></td><td>Shortcut: <code>strategy=traditional</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-excel-virtual-threads</code></td><td>Shortcut: <code>strategy=virtual-threads</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-excel-parallel-stream</code></td><td>Shortcut: <code>strategy=parallel-stream</code></td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb post">POST</span></td><td><code>/api/books/import-excel-parallel-fire-and-forget</code></td><td>Shortcut: virtual-threads in the background (202)</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/books/sample/excel?rows=100000</code></td><td>Download a random .xlsx file (header + rows)</td><td class="auth">USER/ADMIN</td></tr>
+
+        <tr class="group"><td colspan="4">Account · AuthController</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/user/profile</code></td><td>Name, email and roles from the token</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/user/claims</code></td><td>Every claim in the token</td><td class="auth">USER/ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/admin/dashboard</code></td><td>Admin example endpoint</td><td class="auth">ADMIN</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/admin/users</code></td><td>Admin example endpoint (fixed sample data)</td><td class="auth">ADMIN</td></tr>
+
+        <tr class="group"><td colspan="4">Public · RootController, AuthController</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/</code></td><td>Welcome message and quick links</td><td class="auth">public</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/health</code>, <code>/api/health</code></td><td>Simple status</td><td class="auth">public</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/info</code></td><td>Java and Spring Boot versions</td><td class="auth">public</td></tr>
+        <tr><td><span class="verb get">GET</span></td><td><code>/api/public/info</code></td><td>Public example endpoint</td><td class="auth">public</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Error answers</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Code</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td class="n">400</td><td>Wrong file type for the endpoint, empty file, broken .xlsx, unknown strategy, invalid book JSON, or <code>count</code>/<code>rows</code>/<code>page</code> out of range</td></tr>
+        <tr><td class="n">401</td><td>No token, or an invalid one</td></tr>
+        <tr><td class="n">403</td><td>The token is valid but the role is missing (for example, USER calling <code>/api/admin/**</code>)</td></tr>
+        <tr><td class="n">413</td><td>Upload larger than 200&nbsp;MB</td></tr>
+        <tr><td class="n">429</td><td>Another bulk import or generation is already running</td></tr>
+        <tr><td class="n">500</td><td>Database failure during an import; batches already saved stay saved</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="files" aria-labelledby="h-files">
+  <h2 id="h-files"><span class="num">07</span>Source files</h2>
+  <p>All paths are under <code>src/main/java/com/example/untitled/</code>. The numbers are line counts.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>File</th><th class="n">Lines</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>UntitledApplication</code></td><td class="n">12</td><td>Spring Boot entry point</td></tr>
+
+        <tr class="group"><td colspan="3">config</td></tr>
+        <tr><td><code>SecurityConfig</code></td><td class="n">132</td><td>Stateless JWT resource server, public paths, Keycloak role mapping</td></tr>
+        <tr><td><code>OpenApiConfig</code></td><td class="n">84</td><td>Swagger metadata, OAuth2 URLs taken from the issuer URI, 200&nbsp;MB upload limits</td></tr>
+        <tr><td><code>CorsConfig</code></td><td class="n">33</td><td>Allowed browser origins (localhost ports 3000, 8080, 9090)</td></tr>
+
+        <tr class="group"><td colspan="3">controller</td></tr>
+        <tr><td><code>BookController</code></td><td class="n">93</td><td>Book CRUD and random generation</td></tr>
+        <tr><td><code>CsvImportController</code></td><td class="n">127</td><td>CSV import, the four CSV shortcuts, the random CSV download</td></tr>
+        <tr><td><code>ExcelImportController</code></td><td class="n">128</td><td>Excel import, the four Excel shortcuts, the random Excel download</td></tr>
+        <tr><td><code>AbstractImportController</code></td><td class="n">55</td><td>Shared code for both import controllers: fixes the format, runs now or in the background, streams downloads</td></tr>
+        <tr><td><code>AuthController</code></td><td class="n">115</td><td>Profile, claims and admin example endpoints</td></tr>
+        <tr><td><code>RootController</code></td><td class="n">62</td><td>Welcome, health and info</td></tr>
+        <tr><td><code>GlobalExceptionHandler</code></td><td class="n">61</td><td>Turns errors into JSON with status 400, 413 or 429</td></tr>
+
+        <tr class="group"><td colspan="3">entity · repository</td></tr>
+        <tr><td><code>Book</code></td><td class="n">88</td><td>JPA entity (<code>books</code> table) with validation: title and author not blank, price ≥ 0, 2 decimals</td></tr>
+        <tr><td><code>BookRepository</code></td><td class="n">10</td><td>Spring Data JPA repository</td></tr>
+
+        <tr class="group"><td colspan="3">service</td></tr>
+        <tr><td><code>BookService</code></td><td class="n">23</td><td>Interface for CRUD and generation</td></tr>
+        <tr><td><code>BulkOperationGuard</code></td><td class="n">47</td><td>One-permit semaphore: one bulk job at a time; the permit can be closed safely more than once</td></tr>
+        <tr><td><code>BulkOperationInProgressException</code></td><td class="n">12</td><td>Thrown when the guard is busy; becomes 429</td></tr>
+        <tr><td><code>ImportResult</code></td><td class="n">11</td><td>Record: imported, skipped, durationMs</td></tr>
+        <tr><td><code>RandomBooks</code></td><td class="n">39</td><td>Random title, author and price (5.99–99.99), shared by generation and sample files</td></tr>
+
+        <tr class="group"><td colspan="3">service.impl</td></tr>
+        <tr><td><code>BookServiceImpl</code></td><td class="n">132</td><td>CRUD; random generation on a pool of 20 virtual threads</td></tr>
+        <tr><td><code>BookBatchWriter</code></td><td class="n">39</td><td>JDBC batch <code>INSERT</code>, one transaction per call</td></tr>
+
+        <tr class="group"><td colspan="3">service.importer</td></tr>
+        <tr><td><code>BookImportService</code></td><td class="n">127</td><td>Facade: <code>importNow()</code> and <code>importInBackground()</code></td></tr>
+        <tr><td><code>ImportStrategy</code></td><td class="n">18</td><td>Strategy interface: <code>name()</code>, <code>run(job)</code></td></tr>
+        <tr><td><code>AbstractImportStrategy</code></td><td class="n">56</td><td>Template method; batch size 5000</td></tr>
+        <tr><td><code>TraditionalImportStrategy</code></td><td class="n">52</td><td>Single-threaded baseline</td></tr>
+        <tr><td><code>VirtualThreadsImportStrategy</code></td><td class="n">156</td><td>Streaming pipeline with semaphore backpressure and step-by-step <code>[vt]</code> logs</td></tr>
+        <tr><td><code>ParallelStreamImportStrategy</code></td><td class="n">89</td><td>Parallel parsing in a dedicated, configurable ForkJoinPool</td></tr>
+        <tr><td><code>ImportJob</code></td><td class="n">63</td><td>Owns the temp file and the permit; <code>close()</code> cleans up both</td></tr>
+        <tr><td><code>ImportFormat</code></td><td class="n">38</td><td>CSV / XLSX: extension, content type, filename check</td></tr>
+        <tr><td><code>BookReader</code></td><td class="n">21</td><td>Iterator interface: <code>next()</code>, <code>position()</code></td></tr>
+        <tr><td><code>BookRecord</code></td><td class="n">16</td><td>One raw record; <code>toBook()</code> returns null when invalid</td></tr>
+        <tr><td><code>BookReaderFactory</code></td><td class="n">24</td><td>Factory: format → reader</td></tr>
+        <tr><td><code>CsvBookReader</code></td><td class="n">41</td><td>Line reader; parsing is deferred to <code>toBook()</code></td></tr>
+        <tr><td><code>CsvBookParser</code></td><td class="n">58</td><td>Splits quoted CSV fields without regex</td></tr>
+        <tr><td><code>ExcelBookReader</code></td><td class="n">89</td><td>Streaming .xlsx reader; converts each cell to text</td></tr>
+        <tr><td><code>BookFieldMapper</code></td><td class="n">35</td><td>The one validation rule set, used by both formats</td></tr>
+        <tr><td><code>SampleFileService</code></td><td class="n">91</td><td>Writes random CSV/XLSX files as a stream (max 1M rows)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="security" aria-labelledby="h-sec">
+  <h2 id="h-sec"><span class="num">08</span>Security</h2>
+  <ul>
+    <li>The app only <strong>checks</strong> tokens; it never logs users in. It has no client secret and no sessions. Get a token from Keycloak (realm <code>books-realm</code>, client <code>books-service</code>) and send it as <code>Authorization: Bearer …</code>.</li>
+    <li>Roles come from both <code>realm_access.roles</code> and <code>resource_access.&lt;client&gt;.roles</code>, upper-cased and prefixed with <code>ROLE_</code>.</li>
+    <li><code>/api/books/**</code> needs USER or ADMIN. <code>/api/admin/**</code> needs ADMIN. Everything else needs a token, except the public paths: <code>/</code>, <code>/health</code>, <code>/info</code>, <code>/api/health</code>, <code>/api/public/**</code>, <code>/actuator/health</code>, Swagger and <code>/error</code>.</li>
+    <li>Token check: the signature uses Keycloak's key set (JWK), and the issuer must be <code>http://localhost:8180/realms/books-realm</code>. In Docker the key set is fetched from <code>http://keycloak:8080/…</code>.</li>
+  </ul>
+</section>
+
+<section id="config" aria-labelledby="h-cfg">
+  <h2 id="h-cfg"><span class="num">09</span>Configuration</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Profile</th><th>Port</th><th>Database</th><th class="n">Pool</th><th>Schema</th><th>Swagger</th></tr></thead>
+      <tbody>
+        <tr><td>default (Docker)</td><td>8080</td><td><code>mysql:3306</code></td><td class="n">30</td><td>update</td><td>on</td></tr>
+        <tr><td><code>local</code></td><td>9090</td><td><code>localhost:3306</code></td><td class="n">30</td><td>update</td><td>on</td></tr>
+        <tr><td><code>staging</code></td><td>8080</td><td><code>staging-db-server</code></td><td class="n">20</td><td>update</td><td>on</td></tr>
+        <tr><td><code>prod</code></td><td>8080 (SSL)</td><td><code>${DB_HOST}</code> + env credentials</td><td class="n">50</td><td>validate</td><td>off</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Setting</th><th>Value</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Batch size</td><td>5000 rows per transaction</td><td><code>AbstractImportStrategy.BATCH_SIZE</code></td></tr>
+        <tr><td>Concurrent DB writers</td><td>20 (pool is 30)</td><td><code>VirtualThreadsImportStrategy.DB_WRITERS</code></td></tr>
+        <tr><td>Parse threads for parallel-stream</td><td>0 = one per CPU core</td><td><code>app.import.parallel-stream.parallelism</code></td></tr>
+        <tr><td>Max upload</td><td>200&nbsp;MB</td><td><code>spring.servlet.multipart.*</code>, <code>OpenApiConfig</code></td></tr>
+        <tr><td>Download timeout</td><td>5 minutes</td><td><code>spring.mvc.async.request-timeout</code></td></tr>
+        <tr><td>Fast batch inserts</td><td><code>rewriteBatchedStatements=true</code></td><td>JDBC URL (yml and compose)</td></tr>
+        <tr><td>Virtual threads for requests</td><td>on</td><td><code>spring.threads.virtual.enabled</code></td></tr>
+        <tr><td>Prod Keycloak</td><td><code>KEYCLOAK_ISSUER_URI</code>, <code>KEYCLOAK_JWK_SET_URI</code></td><td>environment variables</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="run" aria-labelledby="h-run">
+  <h2 id="h-run"><span class="num">10</span>Run &amp; deploy</h2>
+  <pre><code># full stack: MySQL, Keycloak + its MySQL, app
+docker compose up --build -d
+
+# run locally against your own MySQL (port 9090)
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# tests
+mvn test     # 56 unit tests, no Docker needed
+mvn verify   # + 11 integration tests on MySQL in Docker (Testcontainers)</code></pre>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Container</th><th>Image</th><th>Port on your machine</th></tr></thead>
+      <tbody>
+        <tr><td><code>app</code></td><td>built from <code>Dockerfile</code> (Temurin 25)</td><td>8080 · debugger 127.0.0.1:5005</td></tr>
+        <tr><td><code>mysql</code></td><td><code>mysql:8.0</code></td><td>127.0.0.1:3306</td></tr>
+        <tr><td><code>keycloak</code></td><td><code>quay.io/keycloak/keycloak:23.0</code></td><td>8180</td></tr>
+        <tr><td><code>keycloak-mysql</code></td><td><code>mysql:8.0</code></td><td>internal only</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The image runs <code>java -jar</code> with no debugger. Docker Compose turns the debugger on for development through <code>JAVA_TOOL_OPTIONS</code>, and it is reachable from this machine only. Compose also sets the <code>com.example.untitled</code> log level to DEBUG, so every <code>[vt]</code> step is visible.</p>
+</section>
+
+<section id="tests" aria-labelledby="h-tests">
+  <h2 id="h-tests"><span class="num">11</span>Tests</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Test class</th><th class="n">Tests</th><th>What it proves</th></tr></thead>
+      <tbody>
+        <tr><td><code>BookImportServiceTest</code></td><td class="n">22</td><td>Every strategy × both formats: counts, database failures, early stop, the 429 lock, background clean-up, bad and wrong-type files</td></tr>
+        <tr><td><code>BookControllerSecurityTest</code></td><td class="n">17</td><td>Public vs protected paths, roles, validation, the format used by each endpoint, sample downloads</td></tr>
+        <tr><td><code>CsvBookParserTest</code></td><td class="n">5</td><td>Quotes, commas inside quotes, invalid lines</td></tr>
+        <tr><td><code>BookServiceImplTest</code></td><td class="n">5</td><td>Generation batches, failures, lock released, count limits</td></tr>
+        <tr><td><code>SampleFileServiceTest</code></td><td class="n">4</td><td>Generated files read back with every row valid and every title unique</td></tr>
+        <tr><td><code>ExcelBookReaderTest</code></td><td class="n">2</td><td>Number, text and formula cells, blank rows, a non-xlsx file</td></tr>
+        <tr><td><code>BookBatchWriterTest</code></td><td class="n">1</td><td>The SQL works against the table Hibernate creates (H2)</td></tr>
+        <tr><td><code>BookInsertIT</code></td><td class="n">11</td><td>100,000 rows into real MySQL for every strategy × format, background runs, generation and sample files. Checks the count, no duplicates, the price sum and the first and last rows</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><code>support/XlsxTestFiles</code> builds .xlsx files in memory for the tests.</p>
+</section>
+
+<section id="open" aria-labelledby="h-open">
+  <h2 id="h-open"><span class="num">12</span>Open issues</h2>
+  <ul class="issues">
+    <li><span class="sev high">Blocker</span><strong>Login does not work.</strong> Keycloak rejects <code>user</code> / <code>user123</code>, and the <code>admin</code> user from <code>keycloak_setup.sh</code> does not exist. No token means no access to the API, including through Postman and the test scripts.</li>
+    <li><span class="sev high">High</span><strong>Docker runs older code.</strong> Rebuild with <code>docker compose up --build -d</code> to get the Excel endpoints and the sample downloads.</li>
+    <li><span class="sev med">Medium</span><strong>CPU setting mismatch.</strong> Compose limits the app to <code>cpus: 4.0</code>, but <code>JAVA_TOOL_OPTIONS</code> says <code>-XX:ActiveProcessorCount=14</code>. The JVM then sizes its thread pools, including the parallel-stream pool, for 14 cores it doesn't have. Set both to the same number.</li>
+    <li><span class="sev med">Medium</span><strong>No version control.</strong> The project is not a git repository, so changes cannot be reviewed or rolled back.</li>
+    <li><span class="sev med">Medium</span><strong>Prod schema.</strong> Prod uses <code>ddl-auto: validate</code>, but nothing creates the schema. <code>db/migration/V1__add_price_column.sql</code> never runs because Flyway is not a dependency.</li>
+    <li><span class="sev low">Low</span><strong>Development secrets in files.</strong> The database and Keycloak passwords, and the client secret used by the test scripts, are written in plain text in <code>docker-compose.yml</code> and <code>*.sh</code>.</li>
+    <li><span class="sev low">Low</span><strong>Keycloak 23</strong> is from 2023. Upgrading means setting up the realm again.</li>
+    <li><span class="sev low">Low</span><strong>Documentation sprawl.</strong> The project root has 92 Markdown files from earlier work, many of them out of date. <code>AGENTS.md</code> is current.</li>
+  </ul>
+</section>
+
+<footer>
+  Written from the source code on 25 October 2026. Line counts, endpoints and test counts come from the files themselves, and timings come from the last <code>BookInsertIT</code> run.
+</footer>
+
+</main>
+</div>
+</body>
+</html>

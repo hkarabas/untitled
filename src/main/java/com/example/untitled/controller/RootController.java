@@ -22,16 +22,18 @@ public class RootController {
                 "OpenAPI Spec", "/v3/api-docs",
                 "API Base", "/api/books"
         ));
-        response.put("quick_links", Map.of(
-                "Get all books", "GET /api/books",
-                "Get book by ID", "GET /api/books/{id}",
-                "Create book", "POST /api/books",
-                "Delete book", "DELETE /api/books/{id}",
-                "Generate random books", "POST /api/books/generate-random",
-                "Import CSV (traditional)", "POST /api/books/import-csv-traditional",
-                "Import CSV (virtual threads)", "POST /api/books/import-csv-virtual-threads",
-                "Import CSV (parallel fire-and-forget)", "POST /api/books/import-csv-parallel-fire-and-forget",
-                "Import CSV (parallel streams)", "POST /api/books/import-csv-parallel-stream"
+        response.put("quick_links", Map.ofEntries(
+                Map.entry("Get all books", "GET /api/books"),
+                Map.entry("Get book by ID", "GET /api/books/{id}"),
+                Map.entry("Create book", "POST /api/books"),
+                Map.entry("Delete book", "DELETE /api/books/{id}"),
+                Map.entry("Generate random books", "POST /api/books/generate-random"),
+                Map.entry("Import CSV", "POST /api/books/import/csv?strategy=traditional|virtual-threads|parallel-stream&async=false"),
+                Map.entry("Import Excel", "POST /api/books/import/excel?strategy=traditional|virtual-threads|parallel-stream&async=false"),
+                Map.entry("Import CSV (traditional)", "POST /api/books/import-csv-traditional"),
+                Map.entry("Import CSV (virtual threads)", "POST /api/books/import-csv-virtual-threads"),
+                Map.entry("Import CSV (parallel fire-and-forget)", "POST /api/books/import-csv-parallel-fire-and-forget"),
+                Map.entry("Import CSV (parallel streams)", "POST /api/books/import-csv-parallel-stream")
         ));
         return ResponseEntity.ok(response);
     }

@@ -19,6 +19,11 @@ spring:
     multipart:
       max-file-size: 200MB
       max-request-size: 200MB
+  mvc:
+    async:
+      # Sample-file downloads (/api/books/sample/*) stream asynchronously; the container default (30s)
+      # could cut off a large file on a slow connection
+      request-timeout: 5m
   jpa:
     hibernate:
       ddl-auto: update
