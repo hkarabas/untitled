@@ -8,8 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +31,11 @@ import java.util.Set;
 public class BookImportService {
 
     private static final Logger log = LoggerFactory.getLogger(BookImportService.class);
+
+    private static final FileAttribute<Set<PosixFilePermission>> OWNER_ONLY =
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
+
+    private static final boolean POSIX = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
 
     private final Map<String, ImportStrategy> strategies = new LinkedHashMap<>();
     private final BookReaderFactory readerFactory;
@@ -71,23 +80,29 @@ public class BookImportService {
      */
     public void importInBackground(MultipartFile file, ImportFormat format, String strategyName) throws IOException {
         ImportStrategy strategy = strategy(strategyName);
+        String name = strategy.name();
         ImportJob job = prepare(file, format);
+        String filename = job.filename();
         try {
-            Thread.ofVirtual().name("import-background-" + strategy.name()).start(() -> {
+            startInBackground("import-background-" + name, () -> {
                 try (job) {
-                    log.info("[bg] Background import started: strategy={}, filename={}", strategy.name(), job.filename());
+                    log.info("[bg] Background import started: strategy={}, filename={}", name, filename);
                     strategy.run(job);
                 } catch (Exception e) {
                     // Details were already logged by the strategy
-                    log.error("[bg] Background import failed: strategy={}, filename={}: {}",
-                            strategy.name(), job.filename(), e.toString());
+                    log.error("[bg] Background import failed: strategy={}, filename={}: {}", name, filename, e.toString());
                 }
             });
         } catch (RuntimeException e) {
             job.close(); // thread never started
             throw e;
         }
-        log.info("[bg] Background import accepted: strategy={}, filename={}", strategy.name(), job.filename());
+        log.info("[bg] Background import accepted: strategy={}, filename={}", name, filename);
+    }
+
+    /** Starts {@code task} on a new virtual thread. Package-private so tests can simulate a thread that fails to start. */
+    void startInBackground(String threadName, Runnable task) {
+        Thread.ofVirtual().name(threadName).start(task);
     }
 
     private ImportStrategy strategy(String name) {
@@ -110,18 +125,39 @@ public class BookImportService {
         format.requireFilename(filename);
 
         BulkOperationGuard.Permit permit = guard.acquire();
-        Path tempFile = null;
         try {
-            tempFile = Files.createTempFile("books_import_", format.extension());
-            // transferTo(File) lets Tomcat move its already-on-disk upload instead of copying the bytes
-            file.transferTo(tempFile.toFile());
+            Path tempFile = copyToPrivateTempFile(file, format);
             return new ImportJob(filename, format, tempFile, file.getSize(), readerFactory, permit);
         } catch (IOException | RuntimeException e) {
-            if (tempFile != null) {
-                Files.deleteIfExists(tempFile);
-            }
             permit.close();
             throw e;
         }
+    }
+
+    /** Moves the upload to a new private temp file; deletes the temp file again if that fails. */
+    private static Path copyToPrivateTempFile(MultipartFile file, ImportFormat format) throws IOException {
+        Path tempFile = createPrivateTempFile(format.extension(), POSIX);
+        try {
+            // transferTo(File) lets Tomcat move its already-on-disk upload instead of copying the bytes
+            file.transferTo(tempFile.toFile());
+            return tempFile;
+        } catch (IOException | RuntimeException e) {
+            Files.deleteIfExists(tempFile);
+            throw e;
+        }
+    }
+
+    /**
+     * Creates the temp file readable and writable by the app user only (rw-------), so other users
+     * of the shared temp directory cannot read uploaded data.
+     *
+     * @param posix whether the default file system supports POSIX permissions ({@link #POSIX})
+     */
+    static Path createPrivateTempFile(String suffix, boolean posix) throws IOException {
+        if (posix) {
+            return Files.createTempFile("books_import_", suffix, OWNER_ONLY);
+        }
+        // Not POSIX (Windows): the default temp directory is per user and its ACL already limits access
+        return Files.createTempFile("books_import_", suffix); // NOSONAR java:S5443 (per-user temp dir)
     }
 }

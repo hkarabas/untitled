@@ -1,5 +1,6 @@
 package com.example.untitled.controller;
 
+import com.example.untitled.dto.BookRequest;
 import com.example.untitled.entity.Book;
 import com.example.untitled.service.BookService;
 import com.example.untitled.service.impl.BookServiceImpl;
@@ -56,8 +57,8 @@ public class BookController {
             @ApiResponse(responseCode = "201", description = "Book created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid book data")
     })
-    public ResponseEntity<Book> create(@Valid @RequestBody Book book) {
-        Book saved = bookService.save(book);
+    public ResponseEntity<Book> create(@Valid @RequestBody BookRequest request) {
+        Book saved = bookService.save(request.toBook());
         return ResponseEntity.created(URI.create("/api/books/" + saved.getId())).body(saved);
     }
 

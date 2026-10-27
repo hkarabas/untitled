@@ -21,6 +21,7 @@
         <java.version>25</java.version>
         <poi.version>5.5.1</poi.version>
         <excel-streaming-reader.version>5.3.2</excel-streaming-reader.version>
+        <jacoco.version>0.8.14</jacoco.version>
     </properties>
 
     <dependencies>
@@ -119,6 +120,28 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <!-- Coverage: unit (surefire) and integration (failsafe) tests write to the same jacoco.exec;
+                 the report is generated at verify and read by SonarQube from target/site/jacoco/jacoco.xml -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

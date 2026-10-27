@@ -44,6 +44,12 @@ class CsvBookParserTest {
     @Test
     void detectsBlankLines() {
         assertThat(List.of("", "   ")).allMatch(CsvBookParser::isBlank);
+        assertThat(CsvBookParser.isBlank(null)).isTrue();
         assertThat(CsvBookParser.isBlank("a,b,1")).isFalse();
+    }
+
+    @Test
+    void quotedFieldMayEndTheLine() {
+        assertThat(CsvBookParser.splitFields("Title,\"Author\"")).containsExactly("Title", "Author");
     }
 }

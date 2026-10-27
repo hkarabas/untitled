@@ -1,9 +1,8 @@
 package com.example.untitled.config;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +12,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -39,6 +39,8 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private String jwkSetUri;
 
+    private static final String ROLES_CLAIM = "roles";
+
     private static final String[] PUBLIC_ENDPOINTS = {
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -53,9 +55,11 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) {
         http
-                .csrf(csrf -> csrf.disable())
+                // Safe: the API is stateless and authenticates only with a bearer token in the Authorization
+                // header, never with cookies, so a cross-site request cannot carry the user's credentials
+                .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502 (see comment above)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -81,46 +85,35 @@ public class SecurityConfig {
 
     @Bean
     public Converter<Jwt, Collection<GrantedAuthority>> jwtGrantedAuthoritiesConverter() {
+        JwtGrantedAuthoritiesConverter scopeConverter = new JwtGrantedAuthoritiesConverter();
         return jwt -> {
-            // Get realm roles
-            Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-            Collection<GrantedAuthority> realmRoles = new java.util.ArrayList<>();
+            // Realm roles: realm_access.roles
+            Stream<GrantedAuthority> realmRoles = roleAuthorities(jwt.getClaim("realm_access"));
 
-            if (realmAccess != null && realmAccess.containsKey("roles")) {
-                List<String> roles = (List<String>) realmAccess.get("roles");
-                realmRoles = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                        .collect(Collectors.toList());
-            }
+            // Client roles: resource_access.<client>.roles
+            Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
+            Stream<GrantedAuthority> clientRoles = resourceAccess == null
+                    ? Stream.empty()
+                    : resourceAccess.values().stream().flatMap(SecurityConfig::roleAuthorities);
 
-            // Get resource/client roles
-            Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
-            Collection<GrantedAuthority> resourceRoles = new java.util.ArrayList<>();
+            // Scope-based authorities (SCOPE_...); the converter never returns null
+            Stream<GrantedAuthority> scopes = scopeConverter.convert(jwt).stream();
 
-            if (resourceAccess != null) {
-                resourceRoles = resourceAccess.values().stream()
-                        .filter(resource -> resource instanceof Map)
-                        .flatMap(resource -> {
-                            Map<String, Object> resourceMap = (Map<String, Object>) resource;
-                            if (resourceMap.containsKey("roles")) {
-                                List<String> roles = (List<String>) resourceMap.get("roles");
-                                return roles.stream()
-                                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-                            }
-                            return Stream.empty();
-                        })
-                        .collect(Collectors.toList());
-            }
-
-            // Get scope-based authorities
-            JwtGrantedAuthoritiesConverter scopeConverter = new JwtGrantedAuthoritiesConverter();
-            Collection<GrantedAuthority> scopeAuthorities = scopeConverter.convert(jwt);
-
-            // Combine all authorities
-            return Stream.of(realmRoles, resourceRoles, scopeAuthorities)
-                    .flatMap(Collection::stream)
-                    .collect(Collectors.toList());
+            return Stream.concat(Stream.concat(realmRoles, clientRoles), scopes).toList();
         };
+    }
+
+    /**
+     * {@code ROLE_} authorities from a claim shaped like {@code {"roles": ["user", ...]}};
+     * any other shape yields none.
+     */
+    private static Stream<GrantedAuthority> roleAuthorities(Object access) {
+        if (!(access instanceof Map<?, ?> accessMap) || !(accessMap.get(ROLES_CLAIM) instanceof Collection<?> roles)) {
+            return Stream.empty();
+        }
+        // Locale.ROOT: in a Turkish locale "admin".toUpperCase() is "ADMİN", which would never match hasRole("ADMIN")
+        return roles.stream()
+                .<GrantedAuthority>map(role -> new SimpleGrantedAuthority("ROLE_" + role.toString().toUpperCase(Locale.ROOT)));
     }
 
 

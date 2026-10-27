@@ -28,7 +28,7 @@ final class BookFieldMapper {
         }
         try {
             return new Book(title, author, new BigDecimal(fields.get(2).trim()));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

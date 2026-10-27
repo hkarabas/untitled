@@ -1,6 +1,8 @@
 package com.example.untitled.controller;
 
 import com.example.untitled.config.SecurityConfig;
+import com.example.untitled.entity.Book;
+import com.example.untitled.service.BulkOperationInProgressException;
 import com.example.untitled.service.BookService;
 import com.example.untitled.service.ImportResult;
 import com.example.untitled.service.importer.BookImportService;
@@ -11,6 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.ByteArrayInputStream;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.data.domain.PageImpl;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -28,10 +38,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -44,6 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookControllerSecurityTest {
 
     private static final SimpleGrantedAuthority USER = new SimpleGrantedAuthority("ROLE_USER");
+    private static final SimpleGrantedAuthority ADMIN = new SimpleGrantedAuthority("ROLE_ADMIN");
 
     @Autowired
     private MockMvc mvc;
@@ -218,5 +231,122 @@ class BookControllerSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"author\":\"Someone\",\"price\":10}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listsOnePageOfBooks() throws Exception {
+        when(bookService.findPage(any())).thenReturn(new PageImpl<>(List.of(new Book("Title", "Author", BigDecimal.TEN))));
+
+        mvc.perform(get("/api/books").param("page", "2").with(jwt().authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"title\":\"Title\"")));
+    }
+
+    @Test
+    void getByIdReturnsBookOr404() throws Exception {
+        when(bookService.findById(1L)).thenReturn(Optional.of(new Book("Title", "Author", BigDecimal.TEN)));
+        when(bookService.findById(2L)).thenReturn(Optional.empty());
+
+        mvc.perform(get("/api/books/1").with(jwt().authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.author").value("Author"));
+        mvc.perform(get("/api/books/2").with(jwt().authorities(USER)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void createReturns201WithLocation() throws Exception {
+        Book saved = new Book("Title", "Author", new BigDecimal("19.99"));
+        ReflectionTestUtils.setField(saved, "id", 7L);
+        when(bookService.save(any())).thenReturn(saved);
+
+        mvc.perform(post("/api/books").with(jwt().authorities(USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Title\",\"author\":\"Author\",\"price\":19.99}"))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/books/7"))
+                .andExpect(jsonPath("$.id").value(7));
+    }
+
+    @Test
+    void deleteReturns204ForExistingBook() throws Exception {
+        when(bookService.deleteById(1L)).thenReturn(true);
+        mvc.perform(delete("/api/books/1").with(jwt().authorities(USER))).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void generateRandomBooksReportsCount() throws Exception {
+        mvc.perform(post("/api/books/generate-random").param("count", "50").with(jwt().authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Successfully generated 50 random books")));
+        verify(bookService).generateRandomBooks(50);
+    }
+
+    @Test
+    void busyBulkOperationReturns429() throws Exception {
+        doThrow(new BulkOperationInProgressException()).when(bookService).generateRandomBooks(50);
+
+        mvc.perform(post("/api/books/generate-random").param("count", "50").with(jwt().authorities(USER)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error").value("Busy"));
+    }
+
+    @Test
+    void tooLargeUploadReturns413() throws Exception {
+        when(importService.importNow(any(), any(), any())).thenThrow(new MaxUploadSizeExceededException(1));
+
+        mvc.perform(multipart("/api/books/import/csv").file(CSV).with(jwt().authorities(USER)))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.max_file_size_mb").value(200));
+    }
+
+    @Test
+    void remainingOldCsvEndpointsUseTheirStrategy() throws Exception {
+        when(importService.importNow(any(), any(), any())).thenReturn(new ImportResult(1, 0, 1));
+
+        mvc.perform(multipart("/api/books/import-csv-traditional").file(CSV).with(jwt().authorities(USER)))
+                .andExpect(status().isOk());
+        mvc.perform(multipart("/api/books/import-csv-virtual-threads").file(CSV).with(jwt().authorities(USER)))
+                .andExpect(status().isOk());
+
+        verify(importService).importNow(any(), eq(ImportFormat.CSV), eq("traditional"));
+        verify(importService).importNow(any(), eq(ImportFormat.CSV), eq("virtual-threads"));
+    }
+
+    @Test
+    void userProfileIncludesRealmRolesWhenPresent() throws Exception {
+        mvc.perform(get("/api/user/profile").with(jwt()
+                        .jwt(j -> j.claim("preferred_username", "alice").claim("realm_access", Map.of("roles", List.of("user"))))
+                        .authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.roles[0]").value("user"));
+        mvc.perform(get("/api/user/profile").with(jwt()
+                        .jwt(j -> j.claim("realm_access", Map.of("other", "x")))
+                        .authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles").doesNotExist());
+        mvc.perform(get("/api/user/profile").with(jwt().authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value("user"))
+                .andExpect(jsonPath("$.roles").doesNotExist());
+    }
+
+    @Test
+    void userClaimsReturnsAllClaims() throws Exception {
+        mvc.perform(get("/api/user/claims").with(jwt().jwt(j -> j.claim("email", "a@example.com")).authorities(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("a@example.com"));
+    }
+
+    @Test
+    void adminEndpointsWorkForAdmins() throws Exception {
+        mvc.perform(get("/api/admin/dashboard").with(jwt().jwt(j -> j.claim("preferred_username", "root")).authorities(ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin").value("root"))
+                .andExpect(jsonPath("$.access_level").value("ADMIN"));
+        mvc.perform(get("/api/admin/users").with(jwt().authorities(ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users.length()").value(2));
     }
 }

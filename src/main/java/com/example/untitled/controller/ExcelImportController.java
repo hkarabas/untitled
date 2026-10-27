@@ -67,9 +67,9 @@ public class ExcelImportController extends AbstractImportController {
     })
     public ResponseEntity<String> importExcel(
             @RequestParam("file") @Parameter(description = ".xlsx file to upload", required = true) MultipartFile file,
-            @RequestParam(defaultValue = VirtualThreadsImportStrategy.NAME)
+            @RequestParam(defaultValue = VirtualThreadsImportStrategy.STRATEGY_NAME)
             @Parameter(description = "How to process the file", schema = @Schema(allowableValues = {
-                    TraditionalImportStrategy.NAME, VirtualThreadsImportStrategy.NAME, ParallelStreamImportStrategy.NAME}))
+                    TraditionalImportStrategy.STRATEGY_NAME, VirtualThreadsImportStrategy.STRATEGY_NAME, ParallelStreamImportStrategy.STRATEGY_NAME}))
             String strategy,
             @RequestParam(defaultValue = "false") @Parameter(description = "Run in the background and return 202 immediately")
             boolean async) throws IOException {
@@ -87,7 +87,7 @@ public class ExcelImportController extends AbstractImportController {
     })
     public ResponseEntity<String> importExcelTraditional(
             @RequestParam("file") @Parameter(description = ".xlsx file to upload", required = true) MultipartFile file) throws IOException {
-        return runImport(file, TraditionalImportStrategy.NAME, false);
+        return runImport(file, TraditionalImportStrategy.STRATEGY_NAME, false);
     }
 
     @PostMapping(value = "/import-excel-virtual-threads", consumes = "multipart/form-data")
@@ -99,7 +99,7 @@ public class ExcelImportController extends AbstractImportController {
     })
     public ResponseEntity<String> importExcelVirtualThreads(
             @RequestParam("file") @Parameter(description = ".xlsx file to upload", required = true) MultipartFile file) throws IOException {
-        return runImport(file, VirtualThreadsImportStrategy.NAME, false);
+        return runImport(file, VirtualThreadsImportStrategy.STRATEGY_NAME, false);
     }
 
     @PostMapping(value = "/import-excel-parallel-fire-and-forget", consumes = "multipart/form-data")
@@ -111,7 +111,7 @@ public class ExcelImportController extends AbstractImportController {
     })
     public ResponseEntity<String> importExcelParallelFireAndForget(
             @RequestParam("file") @Parameter(description = ".xlsx file to upload", required = true) MultipartFile file) throws IOException {
-        return runImport(file, VirtualThreadsImportStrategy.NAME, true);
+        return runImport(file, VirtualThreadsImportStrategy.STRATEGY_NAME, true);
     }
 
     @PostMapping(value = "/import-excel-parallel-stream", consumes = "multipart/form-data")
@@ -123,6 +123,6 @@ public class ExcelImportController extends AbstractImportController {
     })
     public ResponseEntity<String> importExcelParallelStream(
             @RequestParam("file") @Parameter(description = ".xlsx file to upload", required = true) MultipartFile file) throws IOException {
-        return runImport(file, ParallelStreamImportStrategy.NAME, false);
+        return runImport(file, ParallelStreamImportStrategy.STRATEGY_NAME, false);
     }
 }

@@ -14,7 +14,7 @@ import java.util.List;
 @Component
 public class TraditionalImportStrategy extends AbstractImportStrategy {
 
-    public static final String NAME = "traditional";
+    public static final String STRATEGY_NAME = "traditional";
 
     public TraditionalImportStrategy(BookBatchWriter batchWriter) {
         super(batchWriter);
@@ -22,7 +22,7 @@ public class TraditionalImportStrategy extends AbstractImportStrategy {
 
     @Override
     public String name() {
-        return NAME;
+        return STRATEGY_NAME;
     }
 
     @Override

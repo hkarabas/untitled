@@ -75,7 +75,7 @@ public class BookServiceImpl implements BookService {
         if (count < 1 || count > MAX_GENERATED_BOOKS) {
             throw new IllegalArgumentException("count must be between 1 and " + MAX_GENERATED_BOOKS);
         }
-        try (BulkOperationGuard.Permit _ = guard.acquire()) {
+        try (var _ = guard.acquire()) {
             long startTime = System.currentTimeMillis();
             List<Runnable> tasks = new ArrayList<>();
             for (int startIdx = 0; startIdx < count; startIdx += BATCH_SIZE) {
@@ -92,8 +92,8 @@ public class BookServiceImpl implements BookService {
 
     private static List<Book> randomBooks(int from, int to) {
         List<Book> books = new ArrayList<>(to - from);
-        for (int i = from; i < to; i++) {
-            books.add(RandomBooks.create(i + 1));
+        for (long number = from + 1L; number <= to; number++) {
+            books.add(RandomBooks.create(number));
         }
         return books;
     }
@@ -105,16 +105,15 @@ public class BookServiceImpl implements BookService {
     private void runConcurrently(List<Runnable> tasks) {
         AtomicInteger completed = new AtomicInteger();
         try (ExecutorService executor = Executors.newFixedThreadPool(DB_WRITERS, Thread.ofVirtual().factory())) {
-            List<Future<?>> futures = new ArrayList<>(tasks.size());
-            for (Runnable task : tasks) {
-                futures.add(executor.submit(() -> {
-                    task.run();
-                    int done = completed.incrementAndGet();
-                    if (done % 20 == 0 || done == tasks.size()) {
-                        log.debug("Progress: {}/{} batches", done, tasks.size());
-                    }
-                }));
-            }
+            List<Future<?>> futures = tasks.stream()
+                    .<Future<?>>map(task -> executor.submit(() -> {
+                        task.run();
+                        int done = completed.incrementAndGet();
+                        if (done % 20 == 0 || done == tasks.size()) {
+                            log.debug("Progress: {}/{} batches", done, tasks.size());
+                        }
+                    }))
+                    .toList();
             for (int i = 0; i < futures.size(); i++) {
                 try {
                     futures.get(i).get();

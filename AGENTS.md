@@ -24,7 +24,8 @@ Design patterns in `service.importer`:
 - **New strategy:** add a `@Component` extending `AbstractImportStrategy`; it is picked up automatically. **New format:** add an `ImportFormat` constant, a `BookReader`, and a case in `BookReaderFactory`
 - `ImportJob` owns the temp copy of the upload and the permit; whoever runs it closes it (so background imports clean up themselves)
 - `BookFieldMapper` holds the single validation rule set (title/author non-empty, numeric price) used by both readers
-- Single domain entity: `Book` (id, title, author, `BigDecimal` price)
+- Single domain entity: `Book` (id, title, author, `BigDecimal` price). `POST /api/books` takes `dto.BookRequest`, never the entity itself
+- Strategy names are `STRATEGY_NAME` constants on each strategy class (not `NAME`, which Sonar flags as clashing with `name()`)
 - Config classes: `SecurityConfig`, `CorsConfig`, `OpenApiConfig`
 - `GlobalExceptionHandler` handles cross-cutting error responses
 

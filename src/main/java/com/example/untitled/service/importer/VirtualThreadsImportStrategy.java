@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Component
 public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
 
-    public static final String NAME = "virtual-threads";
+    public static final String STRATEGY_NAME = "virtual-threads";
 
     /**
      * Concurrent DB writers. Kept below the Hikari pool size (30) so regular API requests still get connections.
@@ -40,7 +40,7 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
 
     @Override
     public String name() {
-        return NAME;
+        return STRATEGY_NAME;
     }
 
     @Override
@@ -55,14 +55,11 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
 
         log.info(TAG + " Pipeline started: batchSize={}, maxConcurrentWriters={}", BATCH_SIZE, DB_WRITERS);
 
-        // Virtual threads are cheap and not pooled; the semaphore is what limits concurrency.
-        // Named import-batch-1, import-batch-2, ... (one thread per batch, so the number matches the batch number)
-        ThreadFactory batchThreads = Thread.ofVirtual().name("import-batch-", 1).factory();
-        try (ExecutorService executor = Executors.newThreadPerTaskExecutor(batchThreads)) {
+        try (ExecutorService executor = newBatchExecutor()) {
             List<BookRecord> chunk = new ArrayList<>(BATCH_SIZE);
-            BookRecord record;
-            while (failure.get() == null && (record = reader.next()) != null) {
-                chunk.add(record);
+            BookRecord bookRecord;
+            while (failure.get() == null && (bookRecord = reader.next()) != null) {
+                chunk.add(bookRecord);
                 if (chunk.size() == BATCH_SIZE) {
                     batches++;
                     log.debug(TAG + " Batch {} read: {} records (file lines/rows {}-{})",
@@ -101,6 +98,16 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
         return new ImportCounts(imported.get(), skipped.get());
     }
 
+    /**
+     * Virtual threads are cheap and not pooled; the semaphore is what limits concurrency.
+     * Named import-batch-1, import-batch-2, ... (one thread per batch, so the number matches the batch number).
+     * Package-private so tests can simulate an executor that rejects a batch.
+     */
+    ExecutorService newBatchExecutor() {
+        ThreadFactory batchThreads = Thread.ofVirtual().name("import-batch-", 1).factory();
+        return Executors.newThreadPerTaskExecutor(batchThreads);
+    }
+
     private void submitBatch(ExecutorService executor, Semaphore writers, List<BookRecord> chunk, int batchNo,
                              AtomicLong imported, AtomicLong skipped, AtomicReference<Throwable> failure)
             throws InterruptedException {
@@ -113,6 +120,7 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
         }
         try {
             executor.execute(() -> {
+                boolean finished = false;
                 try {
                     if (failure.get() != null) {
                         log.warn(TAG + " Batch {} skipped: an earlier batch already failed", batchNo);
@@ -123,8 +131,8 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
                     long parseStart = System.currentTimeMillis();
                     List<Book> batch = new ArrayList<>(chunk.size());
                     int invalid = 0;
-                    for (BookRecord record : chunk) {
-                        Book book = record.toBook();
+                    for (BookRecord bookRecord : chunk) {
+                        Book book = bookRecord.toBook();
                         if (book == null) {
                             invalid++;
                         } else {
@@ -140,17 +148,22 @@ public class VirtualThreadsImportStrategy extends AbstractImportStrategy {
                     long total = imported.addAndGet(batch.size());
                     log.info(TAG + " Batch {} inserted: {} books in {} ms (total imported so far: {})",
                             batchNo, batch.size(), System.currentTimeMillis() - insertStart, total);
-                } catch (Throwable t) {
-                    log.error(TAG + " Batch {} failed: {}", batchNo, t.toString());
-                    failure.compareAndSet(null, t);
+                    finished = true;
+                } catch (Exception e) {
+                    log.error(TAG + " Batch {} failed: {}", batchNo, e.toString());
+                    failure.compareAndSet(null, e);
                 } finally {
+                    if (!finished && failure.get() == null) {
+                        // An Error (e.g. OutOfMemoryError) escaped: still fail the import instead of losing the batch
+                        log.error(TAG + " Batch {} did not finish", batchNo);
+                        failure.compareAndSet(null, new IllegalStateException("Batch " + batchNo + " did not finish"));
+                    }
                     writers.release();
                 }
             });
         } catch (RuntimeException e) {
             writers.release();
-            log.error(TAG + " Batch {} could not be submitted", batchNo, e);
-            throw e;
+            throw new IllegalStateException("Batch " + batchNo + " could not be submitted", e);
         }
     }
 }

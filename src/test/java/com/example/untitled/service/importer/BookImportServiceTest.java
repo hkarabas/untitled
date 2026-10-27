@@ -11,22 +11,28 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -36,7 +42,7 @@ import static org.mockito.Mockito.verify;
 class BookImportServiceTest {
 
     private static final List<String> STRATEGIES = List.of(
-            TraditionalImportStrategy.NAME, VirtualThreadsImportStrategy.NAME, ParallelStreamImportStrategy.NAME);
+            TraditionalImportStrategy.STRATEGY_NAME, VirtualThreadsImportStrategy.STRATEGY_NAME, ParallelStreamImportStrategy.STRATEGY_NAME);
 
     private final BookBatchWriter writer = mock(BookBatchWriter.class);
     private final BulkOperationGuard guard = new BulkOperationGuard();
@@ -123,7 +129,7 @@ class BookImportServiceTest {
 
     @Test
     void virtualThreadsStreamsAllBatchesIncludingPartialLastOne() throws Exception {
-        ImportResult result = service.importNow(largeCsv(123_456), ImportFormat.CSV, VirtualThreadsImportStrategy.NAME);
+        ImportResult result = service.importNow(largeCsv(123_456), ImportFormat.CSV, VirtualThreadsImportStrategy.STRATEGY_NAME);
 
         assertThat(result.imported()).isEqualTo(123_456);
         verify(writer, times(25)).insert(anyList()); // 24 full batches of 5000 + 1 of 3456
@@ -131,7 +137,7 @@ class BookImportServiceTest {
 
     @Test
     void excelImportSpansMultipleBatches() throws Exception {
-        ImportResult result = service.importNow(largeXlsx(12_345), ImportFormat.XLSX, VirtualThreadsImportStrategy.NAME);
+        ImportResult result = service.importNow(largeXlsx(12_345), ImportFormat.XLSX, VirtualThreadsImportStrategy.STRATEGY_NAME);
 
         assertThat(result.imported()).isEqualTo(12_345);
         verify(writer, times(3)).insert(anyList());
@@ -141,7 +147,7 @@ class BookImportServiceTest {
     void virtualThreadsStopsReadingAfterFailure() {
         doThrow(new RuntimeException("db down")).when(writer).insert(anyList());
 
-        assertThatThrownBy(() -> service.importNow(largeCsv(500_000), ImportFormat.CSV, VirtualThreadsImportStrategy.NAME))  // 100 batches
+        assertThatThrownBy(() -> service.importNow(largeCsv(500_000), ImportFormat.CSV, VirtualThreadsImportStrategy.STRATEGY_NAME))  // 100 batches
                 .isInstanceOf(IllegalStateException.class)
                 .hasRootCauseMessage("db down");
         verify(writer, atMost(25)).insert(anyList());
@@ -151,7 +157,7 @@ class BookImportServiceTest {
     void backgroundImportRunsAndCleansUp() throws Exception {
         long tempFilesBefore = countTempImportFiles();
 
-        service.importInBackground(sample(ImportFormat.XLSX), ImportFormat.XLSX, VirtualThreadsImportStrategy.NAME);
+        service.importInBackground(sample(ImportFormat.XLSX), ImportFormat.XLSX, VirtualThreadsImportStrategy.STRATEGY_NAME);
 
         await().atMost(Duration.ofSeconds(10)).until(() -> !guard.isBusy());
         verify(writer).insert(anyList());
@@ -162,7 +168,7 @@ class BookImportServiceTest {
     void backgroundFailureIsNotThrownToCallerAndReleasesPermit() throws Exception {
         doThrow(new RuntimeException("db down")).when(writer).insert(anyList());
 
-        service.importInBackground(sample(ImportFormat.CSV), ImportFormat.CSV, TraditionalImportStrategy.NAME);
+        service.importInBackground(sample(ImportFormat.CSV), ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME);
 
         await().atMost(Duration.ofSeconds(10)).until(() -> !guard.isBusy());
     }
@@ -170,7 +176,7 @@ class BookImportServiceTest {
     @Test
     void rejectsImportWhileAnotherBulkOperationRuns() {
         try (BulkOperationGuard.Permit _ = guard.acquire()) {
-            assertThatThrownBy(() -> service.importNow(sample(ImportFormat.CSV), ImportFormat.CSV, TraditionalImportStrategy.NAME))
+            assertThatThrownBy(() -> service.importNow(sample(ImportFormat.CSV), ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME))
                     .isInstanceOf(BulkOperationInProgressException.class);
         }
     }
@@ -189,7 +195,7 @@ class BookImportServiceTest {
         MockMultipartFile empty = new MockMultipartFile("file", "books.csv", "text/csv", new byte[0]);
 
         for (MockMultipartFile file : List.of(txt, xls, empty)) {
-            assertThatThrownBy(() -> service.importNow(file, ImportFormat.CSV, TraditionalImportStrategy.NAME))
+            assertThatThrownBy(() -> service.importNow(file, ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME))
                     .isInstanceOf(IllegalArgumentException.class);
         }
         assertThat(guard.isBusy()).isFalse();
@@ -197,10 +203,10 @@ class BookImportServiceTest {
 
     @Test
     void eachEndpointAcceptsOnlyItsOwnFormat() {
-        assertThatThrownBy(() -> service.importNow(sample(ImportFormat.XLSX), ImportFormat.CSV, TraditionalImportStrategy.NAME))
+        assertThatThrownBy(() -> service.importNow(sample(ImportFormat.XLSX), ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Only .csv files are allowed on this endpoint");
-        assertThatThrownBy(() -> service.importNow(sample(ImportFormat.CSV), ImportFormat.XLSX, TraditionalImportStrategy.NAME))
+        assertThatThrownBy(() -> service.importNow(sample(ImportFormat.CSV), ImportFormat.XLSX, TraditionalImportStrategy.STRATEGY_NAME))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Only .xlsx files are allowed on this endpoint");
         assertThat(guard.isBusy()).isFalse();
@@ -210,10 +216,80 @@ class BookImportServiceTest {
     void rejectsCorruptExcelFileAndCleansUp() throws IOException {
         long tempFilesBefore = countTempImportFiles();
 
-        assertThatThrownBy(() -> service.importNow(xlsx("not a zip".getBytes()), ImportFormat.XLSX, TraditionalImportStrategy.NAME))
+        assertThatThrownBy(() -> service.importNow(xlsx("not a zip".getBytes()), ImportFormat.XLSX, TraditionalImportStrategy.STRATEGY_NAME))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(guard.isBusy()).isFalse();
         assertThat(countTempImportFiles()).isEqualTo(tempFilesBefore);
+    }
+
+    @Test
+    void listsStrategyNamesInRegistrationOrder() {
+        assertThat(service.strategyNames()).containsExactlyElementsOf(STRATEGIES);
+    }
+
+    @Test
+    void rejectsDuplicateStrategyNames() {
+        List<ImportStrategy> duplicates = List.of(new TraditionalImportStrategy(writer), new TraditionalImportStrategy(writer));
+
+        assertThatThrownBy(() -> new BookImportService(duplicates, new BookReaderFactory(), guard))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(TraditionalImportStrategy.STRATEGY_NAME);
+    }
+
+    @Test
+    void failedUploadTransferCleansUp() throws IOException {
+        long tempFilesBefore = countTempImportFiles();
+        MockMultipartFile failing = new MockMultipartFile("file", "books.csv", "text/csv", "a,b,1".getBytes()) {
+            @Override
+            public void transferTo(File dest) throws IOException {
+                throw new IOException("disk full");
+            }
+        };
+
+        assertThatThrownBy(() -> service.importNow(failing, ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME))
+                .isInstanceOf(IOException.class)
+                .hasMessage("disk full");
+        assertThat(guard.isBusy()).isFalse();
+        assertThat(countTempImportFiles()).isEqualTo(tempFilesBefore);
+    }
+
+    @Test
+    void backgroundThreadThatFailsToStartCleansUp() throws IOException {
+        BookImportService noThreads = new BookImportService(List.of(new TraditionalImportStrategy(writer)), new BookReaderFactory(), guard) {
+            @Override
+            void startInBackground(String threadName, Runnable task) {
+                throw new RejectedExecutionException("no threads");
+            }
+        };
+        long tempFilesBefore = countTempImportFiles();
+
+        assertThatThrownBy(() -> noThreads.importInBackground(sample(ImportFormat.CSV), ImportFormat.CSV, TraditionalImportStrategy.STRATEGY_NAME))
+                .isInstanceOf(RejectedExecutionException.class);
+        assertThat(guard.isBusy()).isFalse();
+        assertThat(countTempImportFiles()).isEqualTo(tempFilesBefore);
+        verify(writer, never()).insert(anyList());
+    }
+
+    @Test
+    void tempFileIsOwnerOnlyOnPosix() throws IOException {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = BookImportService.createPrivateTempFile(".csv", true);
+        try {
+            assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isEqualTo("rw-------");
+        } finally {
+            Files.delete(file);
+        }
+    }
+
+    @Test
+    void tempFileIsCreatedWithoutPosixSupport() throws IOException {
+        Path file = BookImportService.createPrivateTempFile(".xlsx", false);
+        try {
+            assertThat(file).exists();
+            assertThat(file.getFileName().toString()).startsWith("books_import_").endsWith(".xlsx");
+        } finally {
+            Files.delete(file);
+        }
     }
 
     private static long countTempImportFiles() throws IOException {

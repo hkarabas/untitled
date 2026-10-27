@@ -177,7 +177,7 @@ tr.group td { background: var(--binding-soft); font-weight: 600; font-size: .85r
 .auth { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
 
 /* Architecture stack */
-.stack { display: grid; gap: .5rem; margin: 0 0 1.25rem; }
+.stack { list-style: none; padding: 0; display: grid; gap: .5rem; margin: 0 0 1.25rem; }
 .layer {
   display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: .75rem; align-items: center;
   background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: .7rem .9rem;
@@ -296,19 +296,19 @@ footer { border-top: 1px solid var(--rule); padding-top: 1.25rem; color: var(--i
 <section id="architecture" aria-labelledby="h-arch">
   <h2 id="h-arch"><span class="num">01</span>Architecture</h2>
   <p>Requests pass down through these layers. The import code lives in its own package, <code>service.importer</code>, and never depends on the controllers. Full class and sequence diagrams are on the <a href="code-diagrams.html">diagrams page</a>.</p>
-  <div class="stack" role="list">
-    <div class="layer" role="listitem"><span class="name">Client</span><div class="chips"><span class="chip">Postman</span><span class="chip">curl</span><span class="chip">Swagger UI</span><span class="chip">shell scripts</span></div></div>
-    <div class="arrow" aria-hidden="true">↓ Bearer JWT</div>
-    <div class="layer" role="listitem"><span class="name">Security</span><div class="chips"><span class="chip key">SecurityConfig</span><span class="chip">CorsConfig</span><span class="chip">Keycloak :8180</span></div></div>
-    <div class="arrow" aria-hidden="true">↓</div>
-    <div class="layer" role="listitem"><span class="name">Controllers</span><div class="chips"><span class="chip">BookController</span><span class="chip key">CsvImportController</span><span class="chip key">ExcelImportController</span><span class="chip">AuthController</span><span class="chip">RootController</span><span class="chip">GlobalExceptionHandler</span></div></div>
-    <div class="arrow" aria-hidden="true">↓</div>
-    <div class="layer" role="listitem"><span class="name">Services</span><div class="chips"><span class="chip">BookServiceImpl</span><span class="chip key">BookImportService</span><span class="chip">SampleFileService</span><span class="chip">BulkOperationGuard</span></div></div>
-    <div class="arrow" aria-hidden="true">↓</div>
-    <div class="layer" role="listitem"><span class="name">Importer</span><div class="chips"><span class="chip">TraditionalImportStrategy</span><span class="chip">VirtualThreadsImportStrategy</span><span class="chip">ParallelStreamImportStrategy</span><span class="chip">BookReaderFactory</span><span class="chip">CsvBookReader</span><span class="chip">ExcelBookReader</span></div></div>
-    <div class="arrow" aria-hidden="true">↓</div>
-    <div class="layer" role="listitem"><span class="name">Data</span><div class="chips"><span class="chip">BookRepository (JPA)</span><span class="chip key">BookBatchWriter (JDBC)</span><span class="chip">HikariCP · 30</span><span class="chip">MySQL books_db</span></div></div>
-  </div>
+  <ul class="stack">
+    <li class="layer"><span class="name">Client</span><div class="chips"><span class="chip">Postman</span><span class="chip">curl</span><span class="chip">Swagger UI</span><span class="chip">shell scripts</span></div></li>
+    <li class="arrow" aria-hidden="true">↓ Bearer JWT</li>
+    <li class="layer"><span class="name">Security</span><div class="chips"><span class="chip key">SecurityConfig</span><span class="chip">CorsConfig</span><span class="chip">Keycloak :8180</span></div></li>
+    <li class="arrow" aria-hidden="true">↓</li>
+    <li class="layer"><span class="name">Controllers</span><div class="chips"><span class="chip">BookController</span><span class="chip key">CsvImportController</span><span class="chip key">ExcelImportController</span><span class="chip">AuthController</span><span class="chip">RootController</span><span class="chip">GlobalExceptionHandler</span></div></li>
+    <li class="arrow" aria-hidden="true">↓</li>
+    <li class="layer"><span class="name">Services</span><div class="chips"><span class="chip">BookServiceImpl</span><span class="chip key">BookImportService</span><span class="chip">SampleFileService</span><span class="chip">BulkOperationGuard</span></div></li>
+    <li class="arrow" aria-hidden="true">↓</li>
+    <li class="layer"><span class="name">Importer</span><div class="chips"><span class="chip">TraditionalImportStrategy</span><span class="chip">VirtualThreadsImportStrategy</span><span class="chip">ParallelStreamImportStrategy</span><span class="chip">BookReaderFactory</span><span class="chip">CsvBookReader</span><span class="chip">ExcelBookReader</span></div></li>
+    <li class="arrow" aria-hidden="true">↓</li>
+    <li class="layer"><span class="name">Data</span><div class="chips"><span class="chip">BookRepository (JPA)</span><span class="chip key">BookBatchWriter (JDBC)</span><span class="chip">HikariCP · 30</span><span class="chip">MySQL books_db</span></div></li>
+  </ul>
   <p>Single-row CRUD goes through Spring Data JPA. Bulk inserts skip Hibernate and go through <code>BookBatchWriter</code>, which calls <code>JdbcTemplate.batchUpdate</code>. Hibernate cannot batch inserts when ids come from MySQL <code>AUTO_INCREMENT</code>. With <code>rewriteBatchedStatements=true</code>, the MySQL driver sends each batch as a few multi-row <code>INSERT</code> statements.</p>
 </section>
 

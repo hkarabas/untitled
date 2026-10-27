@@ -20,7 +20,7 @@ import java.util.concurrent.ForkJoinWorkerThread;
 @Component
 public class ParallelStreamImportStrategy extends AbstractImportStrategy {
 
-    public static final String NAME = "parallel-stream";
+    public static final String STRATEGY_NAME = "parallel-stream";
 
     /** Threads used by {@code parallelStream()} for parsing. */
     private final int parseParallelism;
@@ -37,15 +37,15 @@ public class ParallelStreamImportStrategy extends AbstractImportStrategy {
 
     @Override
     public String name() {
-        return NAME;
+        return STRATEGY_NAME;
     }
 
     @Override
     protected ImportCounts doImport(BookReader reader) throws IOException {
         List<BookRecord> records = new ArrayList<>();
-        BookRecord record;
-        while ((record = reader.next()) != null) {
-            records.add(record);
+        BookRecord bookRecord;
+        while ((bookRecord = reader.next()) != null) {
+            records.add(bookRecord);
         }
 
         long parseStart = System.currentTimeMillis();
@@ -59,7 +59,7 @@ public class ParallelStreamImportStrategy extends AbstractImportStrategy {
         }
         log.info("[ps] Inserted {} books sequentially in {} ms", books.size(), System.currentTimeMillis() - insertStart);
 
-        return new ImportCounts(books.size(), records.size() - books.size());
+        return new ImportCounts(books.size(), (long) records.size() - books.size());
     }
 
     /**

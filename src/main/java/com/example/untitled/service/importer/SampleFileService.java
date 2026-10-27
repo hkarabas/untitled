@@ -44,9 +44,11 @@ public class SampleFileService {
             throw new IllegalArgumentException("rows must be between 1 and " + MAX_ROWS);
         }
         long start = System.currentTimeMillis();
+        // case null makes the switch exhaustive: a new ImportFormat constant is a compile error here
         switch (format) {
             case CSV -> writeCsv(rows, out);
             case XLSX -> writeExcel(rows, out);
+            case null -> throw new IllegalArgumentException("format is required");
         }
         log.info("Sample file written: format={}, rows={}, durationMs={}", format, rows, System.currentTimeMillis() - start);
     }

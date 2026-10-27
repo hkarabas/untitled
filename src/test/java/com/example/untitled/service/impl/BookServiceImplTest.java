@@ -1,24 +1,82 @@
 package com.example.untitled.service.impl;
 
+import com.example.untitled.entity.Book;
 import com.example.untitled.repository.BookRepository;
 import com.example.untitled.service.BulkOperationGuard;
 import com.example.untitled.service.BulkOperationInProgressException;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class BookServiceImplTest {
 
     private final BookBatchWriter writer = mock(BookBatchWriter.class);
     private final BulkOperationGuard guard = new BulkOperationGuard();
-    private final BookServiceImpl service = new BookServiceImpl(mock(BookRepository.class), writer, guard);
+    private final BookRepository repository = mock(BookRepository.class);
+    private final BookServiceImpl service = new BookServiceImpl(repository, writer, guard);
+
+    @Test
+    void crudDelegatesToRepository() {
+        Book book = new Book("Title", "Author");
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Book> page = new PageImpl<>(List.of(book));
+        when(repository.findAll(pageable)).thenReturn(page);
+        when(repository.findById(1L)).thenReturn(Optional.of(book));
+        when(repository.save(book)).thenReturn(book);
+
+        assertThat(service.findPage(pageable)).isSameAs(page);
+        assertThat(service.findById(1L)).contains(book);
+        assertThat(service.save(book)).isSameAs(book);
+    }
+
+    @Test
+    void deleteReturnsWhetherTheBookExisted() {
+        when(repository.existsById(1L)).thenReturn(true);
+
+        assertThat(service.deleteById(1L)).isTrue();
+        verify(repository).deleteById(1L);
+
+        assertThat(service.deleteById(2L)).isFalse();
+        verify(repository, never()).deleteById(2L);
+    }
+
+    @Test
+    void generationFailsWhenInterruptedWhileWaiting() {
+        CountDownLatch neverReleased = new CountDownLatch(1);
+        doAnswer(inv -> {
+            neverReleased.await(); // ends when shutdownNow() interrupts the writer
+            return null;
+        }).when(writer).insert(anyList());
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThatThrownBy(() -> service.generateRandomBooks(10))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Bulk operation interrupted");
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted(); // clear the flag for the next tests
+        }
+        assertThat(guard.isBusy()).isFalse();
+    }
 
     @Test
     void generatesInBatchesOf5000() {

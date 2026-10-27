@@ -70,4 +70,11 @@ class SampleFileServiceTest {
         assertThatThrownBy(() -> service.write(ImportFormat.CSV, SampleFileService.MAX_ROWS + 1, OutputStream.nullOutputStream()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void rejectsMissingFormat() {
+        assertThatThrownBy(() -> service.write(null, 1, OutputStream.nullOutputStream()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("format is required");
+    }
 }

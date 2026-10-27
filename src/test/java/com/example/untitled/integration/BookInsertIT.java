@@ -120,7 +120,7 @@ class BookInsertIT {
     }
 
     static Stream<Arguments> strategiesAndFormats() {
-        return Stream.of(TraditionalImportStrategy.NAME, VirtualThreadsImportStrategy.NAME, ParallelStreamImportStrategy.NAME)
+        return Stream.of(TraditionalImportStrategy.STRATEGY_NAME, VirtualThreadsImportStrategy.STRATEGY_NAME, ParallelStreamImportStrategy.STRATEGY_NAME)
                 .flatMap(strategy -> Stream.of(ImportFormat.values()).map(format -> Arguments.of(strategy, format)));
     }
 
@@ -147,7 +147,7 @@ class BookInsertIT {
     @EnumSource(ImportFormat.class)
     void backgroundImportEventuallyInserts100kRows(ImportFormat format) throws Exception {
         long start = System.currentTimeMillis();
-        importService.importInBackground(file(format), format, VirtualThreadsImportStrategy.NAME);
+        importService.importInBackground(file(format), format, VirtualThreadsImportStrategy.STRATEGY_NAME);
         log.info("IT background / {}: accepted after {} ms", format, System.currentTimeMillis() - start);
 
         await().atMost(Duration.ofMinutes(2)).pollInterval(Duration.ofMillis(100))
@@ -169,7 +169,7 @@ class BookInsertIT {
 
         MockMultipartFile upload = new MockMultipartFile("file", sampleFiles.filename(format, ROWS), format.mediaType(),
                 out.toByteArray());
-        ImportResult result = importService.importNow(upload, format, VirtualThreadsImportStrategy.NAME);
+        ImportResult result = importService.importNow(upload, format, VirtualThreadsImportStrategy.STRATEGY_NAME);
 
         assertThat(result.imported()).isEqualTo(ROWS);
         assertThat(result.skipped()).isEqualTo(1); // the header row

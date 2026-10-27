@@ -1,6 +1,7 @@
 package com.example.untitled.service.importer;
 
 import com.example.untitled.entity.Book;
+import org.apache.poi.ss.usermodel.FormulaError;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -80,6 +81,32 @@ class ExcelBookReaderTest {
         assertThatThrownBy(() -> new ExcelBookReader(file))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageStartingWith("Not a valid .xlsx file");
+    }
+
+    @Test
+    void workbookWithoutSheetsHasNoRecords() throws Exception {
+        Path file = tempDir.resolve("empty.xlsx");
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); OutputStream out = Files.newOutputStream(file)) {
+            workbook.write(out);
+        }
+
+        try (ExcelBookReader reader = new ExcelBookReader(file)) {
+            assertThat(reader.next()).isNull();
+        }
+    }
+
+    @Test
+    void booleanBlankAndErrorCellsBecomeText() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Row row = workbook.createSheet().createRow(0);
+            row.createCell(0).setCellValue(true);
+            row.createCell(1);                                            // blank
+            row.createCell(2).setCellErrorValue(FormulaError.DIV0.getCode());
+
+            assertThat(ExcelBookReader.cellText(row.getCell(0))).isEqualTo("true");
+            assertThat(ExcelBookReader.cellText(row.getCell(1))).isEmpty();
+            assertThat(ExcelBookReader.cellText(row.getCell(2))).isEmpty();
+        }
     }
 
     private static void text(Row row, String... values) {

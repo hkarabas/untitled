@@ -228,17 +228,17 @@ classDiagram
   }
 
   class TraditionalImportStrategy {
-    +String NAME = "traditional"$
+    +String STRATEGY_NAME = "traditional"$
     #doImport(BookReader) ImportCounts
   }
   class VirtualThreadsImportStrategy {
-    +String NAME = "virtual-threads"$
+    +String STRATEGY_NAME = "virtual-threads"$
     ~int DB_WRITERS = 20$
     #doImport(BookReader) ImportCounts
     -submitBatch(...) void
   }
   class ParallelStreamImportStrategy {
-    +String NAME = "parallel-stream"$
+    +String STRATEGY_NAME = "parallel-stream"$
     -int parseParallelism
     #doImport(BookReader) ImportCounts
     -parseInDedicatedPool(List~BookRecord~) List~Book~
